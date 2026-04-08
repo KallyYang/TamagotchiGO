@@ -1,4 +1,6 @@
 var config = require("./config.js"),
+  audio = require("./audio.js"),
+  registerLog = require("./register_log.js"),
   tamagotchi = require("./cpu/tamagotchi.js"),
   disassemble = require("./cpu/disassembler.js"),
   ports = require("./data/ports.js"),
@@ -53,6 +55,10 @@ function Tamago(element) {
     that = this;
 
   this.system = new tamagotchi.system();
+  this.audio = new audio.AudioOutput();
+  this.registerLog = new registerLog.RegisterLog(ports);
+  this.system.add_write_hook(this.audio.write.bind(this.audio));
+  this.system.add_write_hook(this.registerLog.write.bind(this.registerLog));
 
   this.configure(element);
 
@@ -66,6 +72,12 @@ function Tamago(element) {
     that.system.keys |= that.mapping[e.keyCode] || 0;
   });
   document.addEventListener("keydown", function (e) {
+    if (that.audio.enabled) {
+      that.audio.unlock();
+    }
+    if (!e.repeat) {
+      that.audio.playKey(e.keyCode);
+    }
     that.system.keys &= ~that.mapping[e.keyCode] || 0xff;
   });
 
@@ -97,6 +109,10 @@ function Tamago(element) {
         if (event.type.startsWith("touch")) {
           event.preventDefault();
         }
+        if (that.audio.enabled) {
+          that.audio.unlock();
+        }
+        that.audio.playKey(code);
         that.system.keys &= ~(that.mapping[code] || 0);
       };
 
@@ -209,7 +225,7 @@ Tamago.prototype.drop = function (evt) {
     binary = files[0],
     that = this;
 
-  if (files.length < 0) {
+  if (files.length < 1) {
     return;
   }
 
@@ -217,7 +233,7 @@ Tamago.prototype.drop = function (evt) {
 
   var reader = new FileReader();
   reader.onload = function (e) {
-    that.system.insert_figure(e.target.results);
+    that.system.insert_figure(e.target.result);
   };
   reader.readAsArrayBuffer(binary);
 };
@@ -375,6 +391,37 @@ Tamago.prototype.configure = function (element) {
   if (figureSelect) {
     figureSelect.addEventListener("change", function (e) {
       that.system.inserted_figure = Number(e.target.value);
+    });
+  }
+
+  var soundButton = element.querySelector("button[action=sound]");
+  if (soundButton) {
+    function refreshSoundButton() {
+      soundButton.innerHTML = that.audio.enabled ? "关闭声音" : "开启声音";
+      soundButton.classList.toggle("is-active", that.audio.enabled);
+      soundButton.setAttribute("aria-pressed", that.audio.enabled ? "true" : "false");
+    }
+
+    if (!this.audio.supported) {
+      soundButton.innerHTML = "声音不可用";
+      soundButton.disabled = true;
+    } else {
+      refreshSoundButton();
+      soundButton.addEventListener("click", function () {
+        that.audio.toggle();
+        refreshSoundButton();
+      });
+    }
+  }
+
+  var registerLogButton = element.querySelector("button[action=register-log]"),
+    registerLogPanel = element.querySelector(".register-log");
+  if (registerLogButton && registerLogPanel) {
+    this.registerLog.attach({
+      button: registerLogButton,
+      panel: registerLogPanel,
+      summary: registerLogPanel.querySelector(".register-log-summary"),
+      lines: registerLogPanel.querySelector(".register-log-lines"),
     });
   }
 

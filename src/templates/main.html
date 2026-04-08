@@ -11,6 +11,15 @@
 					<option value="3">芯片3</option>
 				</select>
 			</div>
+			<button class="sound-toggle" type="button" action="sound" aria-pressed="false">开启声音</button>
+			<button class="register-log-toggle" type="button" action="register-log" aria-pressed="false">寄存器日志</button>
+		</div>
+		<div class="register-log" hidden>
+			<div class="register-log-title">
+				<strong>声音/硬件寄存器日志</strong>
+				<span class="register-log-summary"></span>
+			</div>
+			<pre class="register-log-lines"></pre>
 		</div>
 		<div class="device-shell">
 			<div class="screen-layer">

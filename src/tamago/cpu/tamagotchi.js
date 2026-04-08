@@ -20,6 +20,7 @@ function system() {
 	this._wram	 = new Uint8Array(0x600);		// System memory
 	this._eeprom = new eeprom.eeprom(12);		// new 32kb eeprom
 	this._irqs = new Uint16Array(0x10000);
+	this._write_hooks = [];
 
 	this.keys	 = 0xF;
 
@@ -151,6 +152,8 @@ system.prototype.read = function(addr, noack) {
 };
 
 system.prototype.write = function (addr, data) {
+	var result, i;
+
 	if (addr === null) {
 		this.a = data; 
 		return ;
@@ -158,7 +161,17 @@ system.prototype.write = function (addr, data) {
 
 	this._cpuacc[addr] |= ACCESS_WRITE;
 
-	return this._writebank[addr].call(this, addr & 0xFF, data);
+	result = this._writebank[addr].call(this, addr & 0xFF, data);
+
+	for (i = 0; i < this._write_hooks.length; i++) {
+		this._write_hooks[i](addr, data);
+	}
+
+	return result;
+};
+
+system.prototype.add_write_hook = function (hook) {
+	this._write_hooks.push(hook);
 };
 
 // Start helper functions for mapping to memory
@@ -203,4 +216,3 @@ module.exports =  {
 	ACCESS_READ: ACCESS_READ,
 	system: system
 };
-
