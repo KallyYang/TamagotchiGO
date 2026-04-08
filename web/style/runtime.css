@@ -1389,13 +1389,262 @@ a .icon-flip-vertical:before {
  */
 body {
   background: #ffffff;
-  font-family: monospace;
+  color: #213033;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
+  margin: 0;
+  min-height: 100vh;
+}
+* {
+  box-sizing: border-box;
+}
+.site-notice {
+  color: #5b6f73;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 14px 20px 0;
+  text-align: center;
+}
+.site-notice p {
+  margin: 0;
+}
+.site-notice strong {
+  color: #223236;
+}
+tamago {
+  display: block;
+  min-height: calc(14vh);
+  width: 100%;
+}
+tamago:not([debugger]) column {
+  display: block;
+  width: 100%;
+}
+tamago:not([debugger]) display {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-height: calc(14vh);
+  padding: 12px 20px 24px;
+  text-align: center;
+}
+tamago:not([debugger]) .control-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+tamago:not([debugger]) figure {
+  color: #213033;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0;
+  min-height: 1.7em;
+  padding: 4px 0;
+}
+tamago:not([debugger]) figure:empty:before {
+  content: "惜羽拓麻镇";
+}
+tamago:not([debugger]) .figure-selector select {
+  appearance: none;
+  background: #ffffff;
+  border: 1px solid #9bb0b5;
+  border-radius: 8px;
+  color: #182427;
+  cursor: pointer;
+  font: inherit;
+  min-width: 120px;
+  padding: 8px 32px 8px 12px;
+}
+tamago:not([debugger]) .figure-selector {
+  position: relative;
+}
+tamago:not([debugger]) .figure-selector:after {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #182427;
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-45%);
+}
+tamago:not([debugger]) .device-shell {
+  aspect-ratio: 1;
+  background: url("../images/green_mametchi.webp") center center / contain no-repeat;
+  max-width: 700px;
+  position: relative;
+  width: min(94vw, 700px);
+}
+tamago:not([debugger]) .screen-layer {
+  background: rgba(158, 166, 160, 0.96);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 0 18px rgba(26, 31, 30, 0.32), 0 1px 3px rgba(15, 22, 20, 0.28);
+  height: 37.95%;
+  left: 30.8%;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  top: 31.8%;
+  width: 37.95%;
+}
+tamago:not([debugger]) .glyph-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  left: 6.5%;
+  position: absolute;
+  width: 87%;
+}
+tamago:not([debugger]) .glyph-row-top {
+  height: 11%;
+  top: 4.3%;
+}
+tamago:not([debugger]) .glyph-row-bottom {
+  bottom: 8.2%;
+  height: 11%;
+}
+tamago:not([debugger]) .tama-icon {
+  background-color: currentColor;
+  color: #253133;
+  display: block;
+  height: 100%;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  width: 12%;
+}
+tamago:not([debugger]) .tama-icon-status {
+  -webkit-mask-image: url("../images/tama-icon-status.png");
+  mask-image: url("../images/tama-icon-status.png");
+}
+tamago:not([debugger]) .tama-icon-food {
+  -webkit-mask-image: url("../images/tama-icon-food.png");
+  mask-image: url("../images/tama-icon-food.png");
+}
+tamago:not([debugger]) .tama-icon-toilet {
+  -webkit-mask-image: url("../images/tama-icon-toilet.png");
+  mask-image: url("../images/tama-icon-toilet.png");
+}
+tamago:not([debugger]) .tama-icon-door {
+  -webkit-mask-image: url("../images/tama-icon-door.png");
+  mask-image: url("../images/tama-icon-door.png");
+}
+tamago:not([debugger]) .tama-icon-character {
+  -webkit-mask-image: url("../images/tama-icon-character.png");
+  mask-image: url("../images/tama-icon-character.png");
+}
+tamago:not([debugger]) .tama-icon-communication {
+  -webkit-mask-image: url("../images/tama-icon-communication.png");
+  mask-image: url("../images/tama-icon-communication.png");
+}
+tamago:not([debugger]) .tama-icon-medicine {
+  -webkit-mask-image: url("../images/tama-icon-medicine.png");
+  mask-image: url("../images/tama-icon-medicine.png");
+}
+tamago:not([debugger]) .tama-icon-heart {
+  -webkit-mask-image: url("../images/tama-icon-heart.png");
+  mask-image: url("../images/tama-icon-heart.png");
+}
+tamago:not([debugger]) .tama-icon-book {
+  -webkit-mask-image: url("../images/tama-icon-book.png");
+  mask-image: url("../images/tama-icon-book.png");
+}
+tamago:not([debugger]) .tama-icon-friend {
+  -webkit-mask-image: url("../images/tama-icon-friend.png");
+  mask-image: url("../images/tama-icon-friend.png");
+}
+tamago:not([debugger]) .screen-bezel {
+  left: 8.75%;
+  position: absolute;
+  top: 26%;
+  width: 82.5%;
+}
+tamago:not([debugger]) canvas {
+  background: #9ea79d;
+  border: 0;
+  box-shadow: 0 0 10px rgba(34, 39, 37, 0.16);
+  display: block;
+  filter: brightness(0.78) contrast(0.92);
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 100%;
+}
+tamago:not([debugger]) .user-keys {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+tamago:not([debugger]) .user-keys button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: transparent;
+  cursor: pointer;
+  font-size: 0;
+  height: 8.8%;
+  padding: 0;
+  pointer-events: auto;
+  position: absolute;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+  width: 8.8%;
+}
+tamago:not([debugger]) .user-keys .key-a {
+  left: 36%;
+  top: 80.7%;
+}
+tamago:not([debugger]) .user-keys .key-b {
+  left: 49.5%;
+  top: 83.4%;
+}
+tamago:not([debugger]) .user-keys .key-c {
+  left: 62.9%;
+  top: 80.6%;
+}
+tamago:not([debugger]) .user-keys button:active {
+  background: rgba(22, 42, 31, 0.16);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+tamago:not([debugger]) .user-keys button:focus-visible {
+  outline: 2px solid #1d6f58;
+  outline-offset: 2px;
+}
+@media (max-width: 520px) {
+  .site-notice {
+    padding: 10px 14px 0;
+  }
+  tamago:not([debugger]) {
+    min-height: calc(-12vh);
+  }
+  tamago:not([debugger]) display {
+    min-height: calc(-12vh);
+    padding: 10px 8px 18px;
+  }
+  tamago:not([debugger]) .device-shell {
+    width: min(98vw, 700px);
+  }
 }
 tamago[debugger] {
   display: block;
   position: relative;
+  background: #ffffff;
   color: #000000;
+  font-family: monospace;
+  min-height: auto;
+  overflow: auto;
+  padding: 10px;
 }
 tamago[debugger] column {
   display: inline-block;

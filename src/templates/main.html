@@ -1,36 +1,43 @@
 
-<column>
+<column class="runtime-column">
 	<display>
-		<figure></figure>
-		<div class="figure-selector">
-			<select action="figure">
-				<option value="0">无芯片</option>
-				<option value="1">芯片1</option>
-				<option value="2">芯片2</option>
-				<option value="3">芯片3</option>
-			</select>
+		<div class="control-row">
+			<figure></figure>
+			<div class="figure-selector">
+				<select action="figure">
+					<option value="0">无芯片</option>
+					<option value="1">芯片1</option>
+					<option value="2">芯片2</option>
+					<option value="3">芯片3</option>
+				</select>
+			</div>
 		</div>
-		<div style="font-size: 24px;">
-			<i class="icon icon-dashboard glyph"></i>
-			<i class="icon icon-food glyph"></i>
-			<i class="icon icon-magic glyph"></i>
-			<i class="icon icon-signin glyph"></i>
-			<i class="icon icon-user glyph"></i>
+		<div class="device-shell">
+			<div class="screen-layer">
+				<div class="glyph-row glyph-row-top">
+					<span class="tama-icon tama-icon-status glyph"></span>
+					<span class="tama-icon tama-icon-food glyph"></span>
+					<span class="tama-icon tama-icon-toilet glyph"></span>
+					<span class="tama-icon tama-icon-door glyph"></span>
+					<span class="tama-icon tama-icon-character glyph"></span>
+				</div>
+				<div class="screen-bezel">
+					<canvas width="48" height="31"></canvas>
+				</div>
+				<div class="glyph-row glyph-row-bottom">
+					<span class="tama-icon tama-icon-communication glyph"></span>
+					<span class="tama-icon tama-icon-medicine glyph"></span>
+					<span class="tama-icon tama-icon-heart glyph"></span>
+					<span class="tama-icon tama-icon-book glyph"></span>
+					<span class="tama-icon tama-icon-friend glyph"></span>
+				</div>
+			</div>
+			<div class="user-keys">
+				<button class="key-a" data-key="65" aria-label="A">A</button>
+				<button class="key-b" data-key="83" aria-label="B">B</button>
+				<button class="key-c" data-key="68" aria-label="C">C</button>
+			</div>
 		</div>
-		<canvas width="48" height="31"></canvas>
-		<div style="font-size: 24px;">
-			<i class="icon icon-comments glyph"></i>
-			<i class="icon icon-medkit glyph"></i>
-			<i class="icon icon-heart glyph"></i>
-			<i class="icon icon-book glyph"></i>
-			<i class="icon icon-bell glyph"></i>
-		</div>
-			<!-- User key buttons at bottom -->
-	<div class="user-keys">
-		<button data-key="65">A</button>
-		<button data-key="83">B</button>
-		<button data-key="68">C</button>
-	</div>
 	
 	</display>
 	
