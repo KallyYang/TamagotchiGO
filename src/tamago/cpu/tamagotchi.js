@@ -40,6 +40,7 @@ function system() {
 
 	this.previous_clock = 0;
 	this.inserted_figure = 0;
+	this.speed_multiplier = 1;
 	
 	this._tbh_timer = 0; 	// HACK
 }
@@ -51,6 +52,8 @@ system.prototype.PALETTE = [0xffdddddd, 0xff9e9e9e, 0xff606060, 0xff222222];
 
 system.prototype.CLOCK_RATE = 4000000; // 4MHz
 system.prototype.MAX_ADVANCE = 1;
+system.prototype.MAX_FRAME_CYCLES = 260000;
+system.prototype.MAX_FRAME_MS = 8;
 system.prototype.LCD_ORDER = [
 	0x0C0, 0x0CC, 0x0D8, 0x0E4, 
 	0x0F0, 0x0FC, 0x108, 0x114, 
@@ -63,12 +66,19 @@ system.prototype.LCD_ORDER = [
 
 system.prototype.step_realtime = function () {
 	var t = +new Date() / 1000,
-		d = Math.min(this.MAX_ADVANCE, t - this.previous_clock) || 0;
+		d = Math.min(this.MAX_ADVANCE, t - this.previous_clock) || 0,
+		speed = Math.max(1, this.speed_multiplier || 1),
+		cycles = Math.min(this.CLOCK_RATE * d * speed, this.MAX_FRAME_CYCLES),
+		effective_speed = d ? Math.max(1, Math.round(cycles / (this.CLOCK_RATE * d))) : 1,
+		frame_events = Math.min(4, effective_speed),
+		deadline = +new Date() + this.MAX_FRAME_MS,
+		steps = 0,
+		i;
 
 	this.previous_clock = t;
-	this.cycles += this.CLOCK_RATE * d;
+	this.cycles += cycles;
 
-	var ticks = Math.floor(this.cycles);
+	var ticks = Math.floor(cycles);
 
 	this._tbh_timer += ticks;
 
@@ -80,10 +90,18 @@ system.prototype.step_realtime = function () {
 	}
 
 	// Fire every frame (rate unknown, HACK)
-	this.fire_irq(10);
-	this.fire_nmi(6);
+	for (i = 0; i < frame_events; i++) {
+		this.fire_irq(10);
+		this.fire_nmi(6);
+	}
 
-	while(this.cycles > 0) { this.step(); }
+	while(this.cycles > 0) {
+		this.step();
+		if (!(++steps & 0xFF) && +new Date() > deadline) {
+			this.cycles = 0;
+			break;
+		}
+	}
 }
 
 system.prototype.fire_nmi = function (i) {

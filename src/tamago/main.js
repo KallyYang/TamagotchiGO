@@ -466,6 +466,15 @@ Tamago.prototype.configure = function (element) {
     });
   }
 
+  var speedSelect = element.querySelector("select[action=speed]");
+  if (speedSelect) {
+    speedSelect.addEventListener("change", function (e) {
+      that.system.speed_multiplier = Number(e.target.value) || 1;
+      that.system.previous_clock = +new Date() / 1000;
+      that.system.cycles = 0;
+    });
+  }
+
   var soundButton = element.querySelector("button[action=sound]");
   if (soundButton) {
     function refreshSoundButton() {

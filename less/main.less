@@ -76,7 +76,8 @@ tamago:not([debugger]) {
 		content: "惜羽拓麻镇";
 	}
 
-	.figure-selector select {
+	.figure-selector select,
+	.speed-selector select {
 		appearance: none;
 		background: #ffffff;
 		border: 1px solid #9bb0b5;
@@ -92,7 +93,17 @@ tamago:not([debugger]) {
 		position: relative;
 	}
 
-	.figure-selector:after {
+	.speed-selector {
+		align-items: center;
+		color: #213033;
+		display: flex;
+		font-weight: 700;
+		gap: 6px;
+		position: relative;
+	}
+
+	.figure-selector:after,
+	.speed-selector:after {
 		border-left: 4px solid transparent;
 		border-right: 4px solid transparent;
 		border-top: 5px solid #182427;
