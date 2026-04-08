@@ -1476,7 +1476,9 @@ tamago:not([debugger]) .figure-selector:after {
   transform: translateY(-45%);
 }
 tamago:not([debugger]) .sound-toggle,
-tamago:not([debugger]) .register-log-toggle {
+tamago:not([debugger]) .register-log-toggle,
+tamago:not([debugger]) .save-export,
+tamago:not([debugger]) .save-import {
   appearance: none;
   background: #213033;
   border: 1px solid #213033;
@@ -1495,11 +1497,16 @@ tamago:not([debugger]) .register-log-toggle.is-active {
   color: #0d1b12;
 }
 tamago:not([debugger]) .sound-toggle:disabled,
-tamago:not([debugger]) .register-log-toggle:disabled {
+tamago:not([debugger]) .register-log-toggle:disabled,
+tamago:not([debugger]) .save-export:disabled,
+tamago:not([debugger]) .save-import:disabled {
   background: #d5dddf;
   border-color: #c5d0d3;
   color: #6d7b7f;
   cursor: not-allowed;
+}
+tamago:not([debugger]) .save-file-input {
+  display: none;
 }
 tamago:not([debugger]) .register-log {
   background: rgba(247, 250, 250, 0.96);

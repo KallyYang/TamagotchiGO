@@ -105,7 +105,9 @@ tamago:not([debugger]) {
 	}
 
 	.sound-toggle,
-	.register-log-toggle {
+	.register-log-toggle,
+	.save-export,
+	.save-import {
 		appearance: none;
 		background: #213033;
 		border: 1px solid #213033;
@@ -126,11 +128,17 @@ tamago:not([debugger]) {
 	}
 
 	.sound-toggle:disabled,
-	.register-log-toggle:disabled {
+	.register-log-toggle:disabled,
+	.save-export:disabled,
+	.save-import:disabled {
 		background: #d5dddf;
 		border-color: #c5d0d3;
 		color: #6d7b7f;
 		cursor: not-allowed;
+	}
+
+	.save-file-input {
+		display: none;
 	}
 
 	.register-log {

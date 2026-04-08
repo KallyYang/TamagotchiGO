@@ -82,6 +82,12 @@ function Tamago(element) {
     that.system.keys &= ~that.mapping[e.keyCode] || 0xff;
   });
 
+  window.addEventListener("pagehide", function () {
+    if (that.system && that.system._eeprom) {
+      that.system._eeprom.save();
+    }
+  });
+
   // Bind bottom user key buttons (simulate keydown+keyup)
   // [].forEach.call(
   //   document.querySelectorAll(".user-keys button"),
@@ -238,6 +244,42 @@ Tamago.prototype.drop = function (evt) {
     that.system.insert_figure(e.target.result);
   };
   reader.readAsArrayBuffer(binary);
+};
+
+Tamago.prototype.export_save = function () {
+  var payload = this.system._eeprom.export_data(),
+    blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {
+      type: "application/json",
+    }),
+    url = (window.URL || window.webkitURL).createObjectURL(blob),
+    link = document.createElement("a");
+
+  link.href = url;
+  link.download = "tamago-eeprom-save.json";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  setTimeout(function () {
+    (window.URL || window.webkitURL).revokeObjectURL(url);
+  }, 0);
+};
+
+Tamago.prototype.import_save = function (file) {
+  var reader = new FileReader(),
+    that = this;
+
+  reader.onload = function (e) {
+    if (that.system._eeprom.import_data(e.target.result)) {
+      that.system.reset();
+      that.body.figure.innerHTML = "存档已导入";
+      return;
+    }
+
+    that.body.figure.innerHTML = "存档无法读取";
+  };
+
+  reader.readAsText(file);
 };
 
 Tamago.prototype.update_control = function (e) {
@@ -452,6 +494,32 @@ Tamago.prototype.configure = function (element) {
       panel: registerLogPanel,
       summary: registerLogPanel.querySelector(".register-log-summary"),
       lines: registerLogPanel.querySelector(".register-log-lines"),
+    });
+  }
+
+  var exportSaveButton = element.querySelector("button[action=export-save]"),
+    importSaveButton = element.querySelector("button[action=import-save]"),
+    saveFileInput = element.querySelector("input[action=save-file]");
+
+  if (exportSaveButton) {
+    exportSaveButton.addEventListener("click", function () {
+      that.export_save();
+    });
+  }
+
+  if (importSaveButton && saveFileInput) {
+    importSaveButton.addEventListener("click", function () {
+      saveFileInput.click();
+    });
+
+    saveFileInput.addEventListener("change", function (e) {
+      var file = e.target.files[0];
+
+      if (file) {
+        that.import_save(file);
+      }
+
+      e.target.value = "";
     });
   }
 

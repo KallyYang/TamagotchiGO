@@ -9,7 +9,7 @@ var soundRegisters = {
 function AudioOutput() {
   this.Context = window.AudioContext || window.webkitAudioContext;
   this.supported = Boolean(this.Context);
-  this.enabled = false;
+  this.enabled = true;
   this.context = null;
   this.master = null;
   this.fallbackAudioUrl = null;
