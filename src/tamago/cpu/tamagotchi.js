@@ -23,6 +23,8 @@ function system() {
 	this._write_hooks = [];
 
 	this.keys	 = 0xF;
+	this.spi_rom = null;
+	this._spi = null;
 
 	// Convert a 16bit mask into a priority encoded IRQ table
 	var irqs = new Uint16Array(this.bios, 0x3FC0, 16);
@@ -105,7 +107,14 @@ system.prototype.fire_irq = function (i) {
 }
 
 system.prototype.insert_figure = function (data) {
+	if (!data) {
+		this.spi_rom = null;
+		this._spi = null;
+		return;
+	}
+
 	this.spi_rom = new Uint8Array(data);
+	this._spi = null;
 };
 
 system.prototype.init = function () {

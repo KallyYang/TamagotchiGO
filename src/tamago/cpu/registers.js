@@ -45,6 +45,66 @@ function read_portb_data(reg, value) {
 	return (mask & this._cpureg[0x16]) | (~mask & input);
 }
 
+// ==== SPI Figure Flash ====
+function reset_spi() {
+	this._spi = {
+		command: [],
+		response: [],
+		reading: false,
+		address: 0
+	};
+}
+
+function spi_state() {
+	if (!this._spi) { reset_spi.call(this); }
+	return this._spi;
+}
+
+function write_spi_control(reg, value) {
+	value &= 0xFF;
+	this._cpureg[reg] = value;
+	reset_spi.call(this);
+}
+
+function write_spi_data(reg, value) {
+	var spi = spi_state.call(this),
+		rom = this.spi_rom,
+		address;
+
+	value &= 0xFF;
+	this._cpureg[reg] = value;
+
+	if (rom && spi.reading) {
+		spi.response.push(rom[spi.address++ % rom.length]);
+		return;
+	}
+
+	spi.command.push(value);
+	spi.response.push(value);
+
+	if (rom && spi.command.length === 4 && spi.command[0] === 0x03) {
+		address = (spi.command[1] << 16) | (spi.command[2] << 8) | spi.command[3];
+		spi.address = address % rom.length;
+		spi.reading = true;
+	}
+
+	if (spi.command.length > 4 && !spi.reading) {
+		spi.command.shift();
+	}
+}
+
+function read_spi_data(reg) {
+	var spi = spi_state.call(this),
+		value = spi.response.length ? spi.response.shift() : 0xFF;
+
+	this._cpureg[reg] = value;
+	return value;
+}
+
+function read_spi_status(reg) {
+	return this._cpureg[reg] | 0x04;
+}
+
 // --- REGISTER LAYOUT ---
 function pad(s, l) {
 	return "00000000".substr(0, l).substr(s.length) + s;
@@ -96,6 +156,12 @@ var register_layout = {
 	0x73: { write: write_int_flag },
 	0x74: { write: write_int_flag },
 	0x76: {}, // NMI Enables are normal
+
+	// --- SPI figure flash
+	0xB0: { write: write_spi_control },
+	0xB3: { write: write_spi_data },
+	0xB6: { read: read_spi_data },
+	0xB7: { read: read_spi_status },
 }, undef_register = {
 	read: undef_read, 
 	write: undef_write 

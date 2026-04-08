@@ -230,6 +230,7 @@ Tamago.prototype.drop = function (evt) {
   }
 
   this.body.figure.innerHTML = binary.name + " inserted";
+  this.system.inserted_figure = 1;
 
   var reader = new FileReader();
   reader.onload = function (e) {
@@ -390,7 +391,25 @@ Tamago.prototype.configure = function (element) {
   var figureSelect = element.querySelector("select[action=figure]");
   if (figureSelect) {
     figureSelect.addEventListener("change", function (e) {
-      that.system.inserted_figure = Number(e.target.value);
+      var option = e.target.options[e.target.selectedIndex],
+        figure = Number(e.target.value),
+        file = option && option.getAttribute("data-file");
+
+      that.system.inserted_figure = figure;
+
+      if (!figure) {
+        that.system.insert_figure(null);
+        that.body.figure.innerHTML = "";
+      } else if (file) {
+        that.body.figure.innerHTML = "正在读取 " + option.text + "...";
+        getBinary(file, function (data) {
+          that.system.insert_figure(data);
+          that.body.figure.innerHTML = option.text + " inserted";
+        });
+      } else {
+        that.system.insert_figure(null);
+        that.body.figure.innerHTML = "拖入芯片文件";
+      }
     });
   }
 
