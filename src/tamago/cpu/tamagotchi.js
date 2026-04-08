@@ -21,6 +21,7 @@ function system() {
 	this._eeprom = new eeprom.eeprom(12);		// new 32kb eeprom
 	this._irqs = new Uint16Array(0x10000);
 	this._write_hooks = [];
+	this._spi_event_hooks = [];
 
 	this.keys	 = 0xF;
 	this.spi_rom = null;
@@ -181,6 +182,16 @@ system.prototype.write = function (addr, data) {
 
 system.prototype.add_write_hook = function (hook) {
 	this._write_hooks.push(hook);
+};
+
+system.prototype.add_spi_event_hook = function (hook) {
+	this._spi_event_hooks.push(hook);
+};
+
+system.prototype.emit_spi_event = function (event) {
+	for (var i = 0; i < this._spi_event_hooks.length; i++) {
+		this._spi_event_hooks[i](event);
+	}
 };
 
 // Start helper functions for mapping to memory

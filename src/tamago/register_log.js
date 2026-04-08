@@ -17,7 +17,6 @@ var TRACKED_REGISTERS = {
   0xb0: true,
   0xb1: true,
   0xb2: true,
-  0xb3: true,
   0xb4: true,
   0xb5: true,
   0xb6: true,
@@ -111,6 +110,45 @@ RegisterLog.prototype.write = function (addr, value) {
   }
 };
 
+RegisterLog.prototype.spi = function (event) {
+  var mode = this.debugMode(),
+    message = formatSpiEvent(event),
+    entry,
+    key;
+
+  if (!message) {
+    return;
+  }
+
+  key = "spi:" + message;
+  this.total++;
+
+  if (this.lastKey === key && this.entries.length) {
+    entry = this.entries[this.entries.length - 1];
+    entry.repeats++;
+  } else {
+    entry = {
+      time: ((+new Date() - this.startedAt) / 1000).toFixed(3),
+      message: message,
+      repeats: 1,
+    };
+    this.entries.push(entry);
+    this.lastKey = key;
+  }
+
+  while (this.entries.length > 80) {
+    this.entries.shift();
+  }
+
+  if (mode) {
+    this.logToConsole(entry);
+  }
+
+  if (this.enabled) {
+    this.scheduleRender();
+  }
+};
+
 RegisterLog.prototype.trackSoundState = function (reg, value) {
   var eventId;
 
@@ -148,6 +186,11 @@ RegisterLog.prototype.debugMode = function () {
 };
 
 RegisterLog.prototype.logToConsole = function (entry) {
+  if (entry.message) {
+    console.log("[tamago register]", entry.time + "s", entry.message);
+    return;
+  }
+
   console.log(
     "[tamago register]",
     entry.time + "s",
@@ -189,8 +232,8 @@ RegisterLog.prototype.render = function () {
   }
 
   this.summary.textContent = this.total
-    ? "已捕获 " + this.total + " 次相关写入"
-    : "等待相关寄存器写入";
+    ? "已捕获 " + this.total + " 次相关事件"
+    : "等待相关寄存器或 SPI 事件";
 
   for (i = 0; i < this.entries.length; i++) {
     lines.push(formatEntry(this.entries[i]));
@@ -200,6 +243,15 @@ RegisterLog.prototype.render = function () {
 };
 
 function formatEntry(entry) {
+  if (entry.message) {
+    return (
+      entry.time +
+      "s  " +
+      entry.message +
+      (entry.repeats > 1 ? "  x" + entry.repeats : "")
+    );
+  }
+
   return (
     entry.time +
     "s  " +
@@ -209,6 +261,40 @@ function formatEntry(entry) {
     (entry.repeats > 1 ? "  x" + entry.repeats : "") +
     (entry.name ? "  " + entry.name : "")
   );
+}
+
+function formatSpiEvent(event) {
+  if (!event || event.type !== "read" || !event.bytes) {
+    return "";
+  }
+
+  return (
+    "SPI read " +
+    toHex(6, event.address) +
+    " len " +
+    event.bytes.length +
+    " cmd " +
+    toHex(2, event.command) +
+    " -> " +
+    formatBytes(event.bytes, 16)
+  );
+}
+
+function formatBytes(bytes, max) {
+  var parts = [],
+    limit = Math.min(bytes.length, max),
+    i;
+
+  for (i = 0; i < limit; i++) {
+    parts.push(toHex(2, bytes[i]).substr(2));
+  }
+
+  if (bytes.length > limit) {
+    parts.push("...");
+    parts.push("+" + (bytes.length - limit));
+  }
+
+  return parts.join(" ");
 }
 
 function toHex(width, value) {

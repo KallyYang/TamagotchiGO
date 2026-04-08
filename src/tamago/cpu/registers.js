@@ -47,11 +47,15 @@ function read_portb_data(reg, value) {
 
 // ==== SPI Figure Flash ====
 function reset_spi() {
+	flush_spi_trace.call(this);
+
 	this._spi = {
 		command: [],
 		response: [],
 		reading: false,
-		address: 0
+		address: 0,
+		trace: null,
+		mode: ""
 	};
 }
 
@@ -69,23 +73,56 @@ function write_spi_control(reg, value) {
 function write_spi_data(reg, value) {
 	var spi = spi_state.call(this),
 		rom = this.spi_rom,
-		address;
+		address,
+		command;
 
 	value &= 0xFF;
 	this._cpureg[reg] = value;
 
 	if (rom && spi.reading) {
-		spi.response.push(rom[spi.address++ % rom.length]);
+		push_spi_rom_byte.call(this, spi);
+		return;
+	}
+
+	if (rom && spi.mode === "status") {
+		spi.response.push(0x00);
+		return;
+	}
+
+	if (rom && spi.mode === "id") {
+		push_spi_id_byte.call(this, spi);
 		return;
 	}
 
 	spi.command.push(value);
 	spi.response.push(value);
+	command = spi.command[0];
 
-	if (rom && spi.command.length === 4 && spi.command[0] === 0x03) {
+	if (!rom) {
+		return;
+	}
+
+	if (command === 0x05 && spi.command.length === 1) {
+		spi.mode = "status";
+		return;
+	}
+
+	if (command === 0x9F && spi.command.length === 1) {
+		spi.mode = "id";
+		spi.idIndex = 0;
+		return;
+	}
+
+	if (spi.command.length === 4 && command === 0x03) {
 		address = (spi.command[1] << 16) | (spi.command[2] << 8) | spi.command[3];
-		spi.address = address % rom.length;
-		spi.reading = true;
+		start_spi_read.call(this, spi, command, address);
+		return;
+	}
+
+	if (spi.command.length === 5 && command === 0x0B) {
+		address = (spi.command[1] << 16) | (spi.command[2] << 8) | spi.command[3];
+		start_spi_read.call(this, spi, command, address);
+		return;
 	}
 
 	if (spi.command.length > 4 && !spi.reading) {
@@ -103,6 +140,61 @@ function read_spi_data(reg) {
 
 function read_spi_status(reg) {
 	return this._cpureg[reg] | 0x04;
+}
+
+function start_spi_read(spi, command, address) {
+	if (!this.spi_rom || !this.spi_rom.length) {
+		return;
+	}
+
+	spi.address = address % this.spi_rom.length;
+	spi.reading = true;
+	spi.trace = {
+		command: command,
+		address: spi.address,
+		bytes: []
+	};
+}
+
+function push_spi_rom_byte(spi) {
+	var rom = this.spi_rom,
+		value;
+
+	if (!rom || !rom.length) {
+		spi.response.push(0xFF);
+		return;
+	}
+
+	value = rom[spi.address++ % rom.length];
+	spi.response.push(value);
+
+	if (spi.trace) {
+		spi.trace.bytes.push(value);
+	}
+}
+
+function push_spi_id_byte(spi) {
+	var id = [0xEF, 0x40, 0x13],
+		value = id[spi.idIndex++ % id.length];
+
+	spi.response.push(value);
+}
+
+function flush_spi_trace() {
+	var spi = this._spi;
+
+	if (!spi || !spi.trace || !spi.trace.bytes.length || !this.emit_spi_event) {
+		return;
+	}
+
+	this.emit_spi_event({
+		type: "read",
+		command: spi.trace.command,
+		address: spi.trace.address,
+		bytes: spi.trace.bytes.slice()
+	});
+
+	spi.trace = null;
 }
 
 // --- REGISTER LAYOUT ---

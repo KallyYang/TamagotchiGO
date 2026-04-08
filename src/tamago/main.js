@@ -59,6 +59,7 @@ function Tamago(element) {
   this.registerLog = new registerLog.RegisterLog(ports);
   this.system.add_write_hook(this.audio.write.bind(this.audio));
   this.system.add_write_hook(this.registerLog.write.bind(this.registerLog));
+  this.system.add_spi_event_hook(this.registerLog.spi.bind(this.registerLog));
 
   this.configure(element);
 
