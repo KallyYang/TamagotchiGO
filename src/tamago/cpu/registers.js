@@ -22,10 +22,31 @@ function read_porta_data(reg, value) {
 	var mask = this._cpureg[0x11],
 		value = this._cpureg[0x12],
 		spi_power = mask & value & 0x10,
-		input = this.keys | 
+		input = read_ir_rx.call(this) | this.keys |
 				((spi_power ? 0 : this.inserted_figure) << 5);
 
 	return (mask & value) | (~mask & input);
+}
+
+function read_ir_rx() {
+	if (!this._ir_rx) {
+		this._ir_rx = {
+			pc: null,
+			reads: 0
+		};
+	}
+
+	if (this._ir_rx.pc === this.pc) {
+		this._ir_rx.reads++;
+	} else {
+		this._ir_rx.pc = this.pc;
+		this._ir_rx.reads = 1;
+	}
+
+	// No peer is attached, so the IR receiver idles high. If the ROM busy-waits
+	// on an edge, synthesize a small idle edge so the UI can reach its own
+	// failure/return path instead of trapping the emulator forever.
+	return (this._ir_rx.reads >= 8 && Math.floor(this._ir_rx.reads / 8) % 2) ? 0 : 0x80;
 }
 
 // ==== PortB ====

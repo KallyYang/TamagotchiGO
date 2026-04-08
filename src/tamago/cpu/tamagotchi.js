@@ -26,6 +26,7 @@ function system() {
 	this.keys	 = 0xF;
 	this.spi_rom = null;
 	this._spi = null;
+	this._ir_rx = null;
 
 	// Convert a 16bit mask into a priority encoded IRQ table
 	var irqs = new Uint16Array(this.bios, 0x3FC0, 16);
