@@ -393,20 +393,30 @@ Tamago.prototype.configure = function (element) {
     figureSelect.addEventListener("change", function (e) {
       var option = e.target.options[e.target.selectedIndex],
         figure = Number(e.target.value),
-        file = option && option.getAttribute("data-file");
+        file = option && option.getAttribute("data-file"),
+        loadToken = (that.figureLoadToken || 0) + 1;
 
-      that.system.inserted_figure = figure;
+      that.figureLoadToken = loadToken;
 
       if (!figure) {
+        that.system.inserted_figure = 0;
         that.system.insert_figure(null);
         that.body.figure.innerHTML = "";
       } else if (file) {
+        that.system.inserted_figure = 0;
+        that.system.insert_figure(null);
         that.body.figure.innerHTML = "正在读取 " + option.text + "...";
         getBinary(file, function (data) {
+          if (that.figureLoadToken !== loadToken) {
+            return;
+          }
+
           that.system.insert_figure(data);
+          that.system.inserted_figure = figure;
           that.body.figure.innerHTML = option.text + " inserted";
         });
       } else {
+        that.system.inserted_figure = 0;
         that.system.insert_figure(null);
         that.body.figure.innerHTML = "拖入芯片文件";
       }
