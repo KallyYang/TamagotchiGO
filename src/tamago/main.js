@@ -231,12 +231,16 @@ Tamago.prototype.reset = function (e) {
 };
 
 Tamago.prototype.refresh_simple = function () {
-  var a = 4,
+  var lcd = this.system.get_lcd_state
+      ? this.system.get_lcd_state()
+      : { enabled: true, rows: 31, columns: 64 },
+    background = this.system.PALETTE[0],
+    a = 4,
     b = 0,
     g = 0;
 
   while (g < 10) {
-    var glyph = (this.system._dram[a] >> b) & 3;
+    var glyph = lcd.enabled ? (this.system._dram[a] >> b) & 3 : 0;
     if ((b -= 2) < 0) {
       b = 6;
       a++;
@@ -248,14 +252,19 @@ Tamago.prototype.refresh_simple = function () {
 
   var px = 0;
   for (var y = 0; y < 31; y++) {
-    var a = this.system.LCD_ORDER[y];
+    var a = this.system.LCD_ORDER[y],
+      rowActive = lcd.enabled && y < lcd.rows;
 
     for (var x = 0; x < 64; x += 4) {
-      var d = this.system._dram[a++],
+      var d = rowActive ? this.system._dram[a++] : 0,
         b = 6;
 
       while (b >= 0) {
-        this._pixels[px++] = this.system.PALETTE[(d >> b) & 3];
+        var column = x + ((6 - b) >> 1);
+        this._pixels[px++] =
+          rowActive && column < lcd.columns
+            ? this.system.PALETTE[(d >> b) & 3]
+            : background;
         b -= 2;
       }
     }

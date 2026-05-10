@@ -5,7 +5,8 @@
   "scripts": {
     "build:web": "node ./node_modules/grunt-cli/bin/grunt",
     "dev": "node ./node_modules/grunt-cli/bin/grunt dev",
-    "start:app": "node ./scripts/launch.js"
+    "start:app": "node ./scripts/launch.js",
+    "test:rom": "node ./scripts/rom-regression.js"
   },
   "engines": {
     "node": ">=18"

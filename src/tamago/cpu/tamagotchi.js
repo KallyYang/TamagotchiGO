@@ -7,9 +7,27 @@ var r6502 = require("./6502.js"),
 var ACCESS_READ		= 0x01,
 		ACCESS_WRITE	= 0x02;
 
-function system() {
-	var that = this;
+function create_timer(lowReg, highReg, controlReg, enableMask, irq) {
+	return {
+		lowReg: lowReg,
+		highReg: highReg,
+		controlReg: controlReg,
+		enableMask: enableMask,
+		irq: irq,
+		reload: 0,
+		period: 0x10000,
+		remaining: 0x10000,
+		active: false
+	};
+}
 
+function timer_period(raw) {
+	raw &= 0xFFFF;
+	raw = (0x10000 - raw) & 0xFFFF;
+	return raw || 0x10000;
+}
+
+function system() {
 	this._readbank = new Array(0x10000);
 	this._writebank = new Array(0x10000);
 
@@ -22,11 +40,15 @@ function system() {
 	this._irqs = new Uint16Array(0x10000);
 	this._write_hooks = [];
 	this._spi_event_hooks = [];
+	this._peripherals = null;
+	this._ir_peer = null;
 
 	this.keys	 = 0xF;
 	this.spi_rom = null;
 	this._spi = null;
-	this._ir_rx = null;
+	this.previous_clock = 0;
+	this.inserted_figure = 0;
+	this.speed_multiplier = 1;
 
 	// Convert a 16bit mask into a priority encoded IRQ table
 	var irqs = new Uint16Array(this.bios, 0x3FC0, 16);
@@ -37,12 +59,6 @@ function system() {
 	// Configure and reset
 	this.init();
 	this.reset();
-
-	this.previous_clock = 0;
-	this.inserted_figure = 0;
-	this.speed_multiplier = 1;
-	
-	this._tbh_timer = 0; 	// HACK
 }
 
 system.prototype = Object.create(r6502.r6502);	
@@ -64,6 +80,150 @@ system.prototype.LCD_ORDER = [
 	0x054, 0x048, 0x03C, 0x030, 
 	0x024, 0x018, 0x00C];
 
+system.prototype.reset_peripherals = function () {
+	this._cpureg.fill(0);
+	this._spi = null;
+	this._peripherals = {
+		timers: {
+			tm0: create_timer(0x32, 0x33, 0x30, 0x01, null),
+			tm1: create_timer(0x34, 0x35, 0x31, 0x02, 10),
+			tbl: {
+				controlReg: 0x31,
+				enableMask: 0x20,
+				divider: this.CLOCK_RATE / 2,
+				remaining: this.CLOCK_RATE / 2,
+				irq: 13,
+				active: false
+			}
+		},
+		lcd: {
+			enabled: false,
+			bufferEnabled: false,
+			rows: this.LCD_ORDER.length,
+			columns: 64
+		},
+		ir: {
+			peer: this._ir_peer,
+			strobe: 0,
+			txLine: false,
+			altTxLine: false,
+			window: null
+		},
+		spiFlash: {
+			deepPowerDown: false
+		}
+	};
+	this.sync_lcd_state();
+};
+
+system.prototype.connectIrPeer = function (peerSystem) {
+	this._ir_peer = peerSystem || null;
+	if (this._peripherals) {
+		this._peripherals.ir.peer = this._ir_peer;
+	}
+};
+
+system.prototype.update_timer_reload = function (name) {
+	var timer = this._peripherals.timers[name];
+
+	if (!timer) {
+		return;
+	}
+
+	timer.reload = this._cpureg[timer.lowReg] | (this._cpureg[timer.highReg] << 8);
+	timer.period = timer_period(timer.reload);
+	timer.remaining = timer.period;
+};
+
+system.prototype.configure_timers = function () {
+	var timers = this._peripherals.timers,
+		name,
+		timer,
+		active;
+
+	for (name in timers) {
+		if (!timers.hasOwnProperty(name)) {
+			continue;
+		}
+
+		timer = timers[name];
+		active = Boolean(this._cpureg[timer.controlReg] & timer.enableMask);
+
+		if (active && !timer.active) {
+			timer.remaining = timer.period || timer.divider || 1;
+		} else if (!active && timer.active) {
+			timer.remaining = timer.period || timer.divider || 1;
+		}
+
+		timer.active = active;
+	}
+};
+
+system.prototype.sync_lcd_state = function () {
+	var lcd = this._peripherals.lcd,
+		setup1 = this._cpureg[0x40],
+		bufferCtrl = this._cpureg[0x47],
+		segCount = this._cpureg[0x44],
+		comCount = this._cpureg[0x45];
+
+	lcd.bufferEnabled = Boolean(bufferCtrl & 0x40);
+	lcd.enabled = Boolean((setup1 & 0x20) && lcd.bufferEnabled);
+	lcd.rows = Math.max(1, Math.min(this.LCD_ORDER.length, (comCount & 0x1F) || this.LCD_ORDER.length));
+	lcd.columns = Math.max(4, Math.min(64, ((segCount & 0x0F) + 1) * 16));
+};
+
+system.prototype.get_lcd_state = function () {
+	return this._peripherals.lcd;
+};
+
+system.prototype.advance_timer = function (timer, cycles) {
+	var period,
+		guard = 0;
+
+	if (!timer.active) {
+		return;
+	}
+
+	period = timer.period || 1;
+	timer.remaining -= cycles;
+
+	while (timer.remaining <= 0 && guard++ < 16) {
+		timer.remaining += period;
+		if (timer.irq !== null) {
+			this.fire_irq(timer.irq);
+		}
+	}
+};
+
+system.prototype.advance_timebase = function (timer, cycles) {
+	var guard = 0;
+
+	if (!timer.active) {
+		return;
+	}
+
+	timer.remaining -= cycles;
+
+	while (timer.remaining <= 0 && guard++ < 4) {
+		timer.remaining += timer.divider;
+		this.fire_irq(timer.irq);
+	}
+};
+
+system.prototype.advance_peripherals = function (cycles) {
+	var timers = this._peripherals.timers;
+
+	this.advance_timer(timers.tm0, cycles);
+	this.advance_timer(timers.tm1, cycles);
+	this.advance_timebase(timers.tbl, cycles);
+};
+
+system.prototype.step = function () {
+	var cycles = r6502.r6502.step.call(this);
+	this.advance_peripherals(cycles);
+	return cycles;
+};
+
 system.prototype.step_realtime = function () {
 	var t = +new Date() / 1000,
 		d = Math.min(this.MAX_ADVANCE, t - this.previous_clock) || 0,
@@ -78,20 +238,8 @@ system.prototype.step_realtime = function () {
 	this.previous_clock = t;
 	this.cycles += cycles;
 
-	var ticks = Math.floor(cycles);
-
-	this._tbh_timer += ticks;
-
-	// Animation rate counter (HACk)
-	var TBH_RATE = this.CLOCK_RATE / 2;
-	while (this._tbh_timer >= TBH_RATE) {
-		this.fire_irq(13);
-		this._tbh_timer -= TBH_RATE;
-	}
-
-	// Fire every frame (rate unknown, HACK)
+	// Fire the bundled BIOS NMI heartbeat from the frame loop.
 	for (i = 0; i < frame_events; i++) {
-		this.fire_irq(10);
 		this.fire_nmi(6);
 	}
 
@@ -130,11 +278,17 @@ system.prototype.insert_figure = function (data) {
 	if (!data) {
 		this.spi_rom = null;
 		this._spi = null;
+		if (this._peripherals) {
+			this._peripherals.spiFlash.deepPowerDown = false;
+		}
 		return;
 	}
 
 	this.spi_rom = new Uint8Array(data);
 	this._spi = null;
+	if (this._peripherals) {
+		this._peripherals.spiFlash.deepPowerDown = false;
+	}
 };
 
 system.prototype.init = function () {
@@ -168,6 +322,14 @@ system.prototype.init = function () {
 	// Bankable rom
 	this.set_rom_page(0);	// Clear current rom page
 }
+
+system.prototype.reset = function () {
+	this.cycles = 0;
+	this._cpuacc.fill(0);
+	this.reset_peripherals();
+	this.previous_clock = +new Date() / 1000;
+	r6502.r6502.reset.call(this);
+};
 
 system.prototype.read = function(addr, noack) {
 	// A addressing

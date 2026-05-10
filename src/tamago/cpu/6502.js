@@ -19,7 +19,7 @@ r6502.init = function () {
 		ops[code] = {
 			operation: operations[op.instruction],
 			address: addressing[op.addressing],
-			cycles: op.cycles
+			cycles: Number(op.cycles)
 		};
 	});
 }
@@ -54,6 +54,7 @@ r6502.step = function () {
 	if (next === undefined) { throw new Error("System has crashed (invalid operation)"); }
 	next.operation(this, next.address(this));
 	this.cycles -= next.cycles;
+	return next.cycles;
 };
 
 r6502.next = function () {
