@@ -2,10 +2,19 @@
   "name": "tamago",
   "version": "0.0.0",
   "description": "Tama-Town test framework",
+  "scripts": {
+    "build:web": "node ./node_modules/grunt-cli/bin/grunt",
+    "dev": "node ./node_modules/grunt-cli/bin/grunt dev",
+    "start:app": "node ./scripts/launch.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "browserify-ejs": "0.0.2",
     "grunt-contrib-uglify": "~0.2.7",
     "grunt": "~0.4.2",
+    "grunt-cli": "^1.5.0",
     "grunt-browserify": "~1.2.11",
     "grunt-contrib-watch": "~0.5.3",
     "grunt-contrib-connect": "~0.5.0",
