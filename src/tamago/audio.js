@@ -12,6 +12,7 @@ function AudioOutput() {
   this.enabled = true;
   this.context = null;
   this.master = null;
+  this.primed = false;
   this.fallbackAudioUrl = null;
   this.registers = {};
   this.keyFallbackTimer = null;
@@ -31,14 +32,7 @@ AudioOutput.prototype.toggle = function () {
   return this.enabled;
 };
 
-AudioOutput.prototype.unlock = function (ready) {
-  var resumed,
-    that = this;
-
-  if (!this.supported) {
-    return false;
-  }
-
+AudioOutput.prototype.ensureContext = function () {
   if (!this.context) {
     this.context = new this.Context();
     this.master = this.context.createGain();
@@ -47,14 +41,62 @@ AudioOutput.prototype.unlock = function (ready) {
   } else if (this.enabled && this.master) {
     this.master.gain.value = 0.22;
   }
+};
 
-  if (this.context.state === "suspended") {
+AudioOutput.prototype.prime = function () {
+  var buffer,
+    source;
+
+  if (
+    this.primed ||
+    !this.context ||
+    this.context.state === "closed" ||
+    !this.context.createBuffer ||
+    !this.context.createBufferSource
+  ) {
+    return;
+  }
+
+  try {
+    buffer = this.context.createBuffer(1, 1, 22050);
+    source = this.context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.master);
+    source.start(0);
+    this.primed = true;
+  } catch (e) {}
+};
+
+AudioOutput.prototype.unlock = function (ready) {
+  var resumed,
+    resumeNeeded,
+    that = this;
+
+  if (!this.supported) {
+    return false;
+  }
+
+  this.ensureContext();
+  this.prime();
+
+  resumeNeeded =
+    this.context.state === "suspended" || this.context.state === "interrupted";
+
+  if (resumeNeeded && this.context.resume) {
     resumed = this.context.resume();
-    if (ready && resumed && resumed.then) {
-      resumed.then(function () {
-        ready.call(that);
-      });
+
+    if (ready) {
+      if (resumed && resumed.then) {
+        resumed
+          .then(function () {
+            ready.call(that);
+          })
+          .catch(function () {});
+      } else {
+        ready.call(this);
+      }
     }
+
     return true;
   }
 

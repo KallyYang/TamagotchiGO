@@ -62,6 +62,7 @@ function Tamago(element) {
   this.system.add_spi_event_hook(this.registerLog.spi.bind(this.registerLog));
 
   this.configure(element);
+  this.bindAudioUnlock(element);
 
   this._pixeldata = this.body.display.getImageData(0, 0, 64, 31);
   this._pixels = new Uint32Array(this._pixeldata.data.buffer);
@@ -148,6 +149,45 @@ function Tamago(element) {
 
 // Keyboard mapping
 Tamago.prototype.mapping = { 65: 1, 83: 2, 68: 4, 82: 8 };
+
+Tamago.prototype.bindAudioUnlock = function (element) {
+  var that = this,
+    listeners = [],
+    active = true;
+
+  if (!this.audio.supported) {
+    return;
+  }
+
+  function removeListeners() {
+    if (!active) {
+      return;
+    }
+
+    active = false;
+    listeners.forEach(function (listener) {
+      listener.node.removeEventListener(listener.type, attemptUnlock, true);
+    });
+  }
+
+  function attemptUnlock() {
+    if (!active || !that.audio.enabled) {
+      return;
+    }
+
+    that.audio.unlock(removeListeners);
+  }
+
+  function addListener(node, type) {
+    node.addEventListener(type, attemptUnlock, true);
+    listeners.push({ node: node, type: type });
+  }
+
+  ["pointerdown", "touchstart", "mousedown", "click"].forEach(function (type) {
+    addListener(element, type);
+  });
+  addListener(document, "keydown");
+};
 
 Tamago.prototype.step = function (e) {
   this.system.step();
