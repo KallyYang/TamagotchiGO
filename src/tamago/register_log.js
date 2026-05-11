@@ -27,6 +27,7 @@ var TRACKED_REGISTERS = {
 function RegisterLog(ports) {
   this.ports = ports || {};
   this.enabled = false;
+  this.suppressed = false;
   this.entries = [];
   this.soundState = {};
   this.counts = {};
@@ -39,6 +40,10 @@ function RegisterLog(ports) {
   this.summary = null;
   this.lines = null;
 }
+
+RegisterLog.prototype.setSuppressed = function (suppressed) {
+  this.suppressed = Boolean(suppressed);
+};
 
 RegisterLog.prototype.attach = function (elements) {
   var that = this;
@@ -69,6 +74,10 @@ RegisterLog.prototype.write = function (addr, value) {
     soundEventName;
 
   if ((addr & 0xf000) !== 0x3000) {
+    return;
+  }
+
+  if (this.suppressed) {
     return;
   }
 
@@ -117,6 +126,10 @@ RegisterLog.prototype.spi = function (event) {
     key;
 
   if (!message) {
+    return;
+  }
+
+  if (this.suppressed) {
     return;
   }
 

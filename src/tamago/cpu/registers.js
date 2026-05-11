@@ -94,16 +94,34 @@ function write_timer1_high(reg, value) {
 
 // ==== Port A / IR ====
 function update_ir_tx_state() {
-	var ir = peripherals.call(this).ir;
+	var ir = peripherals.call(this).ir,
+		txLine = Boolean(this._cpureg[0x11] & this._cpureg[0x12] & 0x80),
+		altTxLine = Boolean(this._cpureg[0x15] & this._cpureg[0x16] & 0x08);
 
-	ir.txLine = Boolean(this._cpureg[0x11] & this._cpureg[0x12] & 0x80);
-	ir.altTxLine = Boolean(this._cpureg[0x15] & this._cpureg[0x16] & 0x08);
+	if (ir.txLine === txLine && ir.altTxLine === altTxLine) {
+		return;
+	}
+
+	ir.txLine = txLine;
+	ir.altTxLine = altTxLine;
+
+	if (this.emit_ir_event) {
+		this.emit_ir_event({
+			type: "tx",
+			cycle: this.total_cycles || 0,
+			pc: this.pc || 0,
+			strobe: ir.strobe || 0,
+			txLine: ir.txLine,
+			altTxLine: ir.altTxLine,
+			value: ir.txLine || ir.altTxLine ? 1 : 0
+		});
+	}
 }
 
 function arm_ir_failure_window() {
 	var ir = peripherals.call(this).ir;
 
-	if (ir.peer) {
+	if (ir.peer || (ir.responseTrace && ir.responseTrace.events && ir.responseTrace.events.length)) {
 		ir.window = null;
 		return;
 	}
@@ -116,15 +134,54 @@ function arm_ir_failure_window() {
 	};
 }
 
+function start_ir_response_playback() {
+	var ir = peripherals.call(this).ir,
+		trace = ir.responseTrace;
+
+	if (!trace || !trace.events || !trace.events.length) {
+		ir.responsePlayback = null;
+		return false;
+	}
+
+	ir.responsePlayback = {
+		trace: trace,
+		index: 0,
+		startCycle: this.total_cycles || 0,
+		level: 0x80,
+		lastCycle: trace.events[trace.events.length - 1].cycle || 0
+	};
+
+	return true;
+}
+
 function write_porta_dir_data(reg, value) {
 	latch_write.call(this, reg, value);
 	update_ir_tx_state.call(this);
 }
 
 function write_porta_strobe(reg, value) {
+	var ir;
+
 	latch_write.call(this, reg, value);
-	peripherals.call(this).ir.strobe = value & 0xFF;
-	arm_ir_failure_window.call(this);
+	ir = peripherals.call(this).ir;
+	ir.strobe = value & 0xFF;
+	ir.responsePlayback = null;
+
+	if (this.emit_ir_event) {
+		this.emit_ir_event({
+			type: "strobe",
+			cycle: this.total_cycles || 0,
+			pc: this.pc || 0,
+			strobe: ir.strobe,
+			txLine: ir.txLine,
+			altTxLine: ir.altTxLine,
+			value: ir.strobe
+		});
+	}
+
+	if (!start_ir_response_playback.call(this)) {
+		arm_ir_failure_window.call(this);
+	}
 }
 
 function read_porta_data(reg) {
@@ -140,12 +197,18 @@ function read_porta_data(reg) {
 function read_ir_rx() {
 	var ir = peripherals.call(this).ir,
 		peer,
+		playbackLevel,
 		window,
 		level;
 
+	playbackLevel = replay_ir_level.call(this, ir);
+	if (playbackLevel !== null) {
+		return playbackLevel;
+	}
+
 	peer = ir.peer;
 	if (peer && peer._peripherals && peer._peripherals.ir) {
-		return (peer._peripherals.ir.txLine || peer._peripherals.ir.altTxLine) ? 0x80 : 0x00;
+		return 0x80;
 	}
 
 	window = ir.window;
@@ -162,6 +225,44 @@ function read_ir_rx() {
 	}
 
 	return level;
+}
+
+function replay_ir_level(ir) {
+	var playback = ir.responsePlayback,
+		elapsed,
+		event;
+
+	if (!playback) {
+		return null;
+	}
+
+	elapsed = (this.total_cycles || 0) - playback.startCycle;
+
+	while (playback.index < playback.trace.events.length &&
+		Number(playback.trace.events[playback.index].cycle || 0) <= elapsed) {
+		event = playback.trace.events[playback.index++];
+		playback.level = event_level(event);
+	}
+
+	if (playback.index >= playback.trace.events.length &&
+		elapsed > playback.lastCycle + 512) {
+		ir.responsePlayback = null;
+		return 0x80;
+	}
+
+	return playback.level;
+}
+
+function event_level(event) {
+	if (!event) {
+		return 0x80;
+	}
+
+	if (event.value === 0 || event.value === 1) {
+		return event.value ? 0x80 : 0x00;
+	}
+
+	return event.txLine || event.altTxLine ? 0x80 : 0x00;
 }
 
 // ==== Port B / EEPROM ====

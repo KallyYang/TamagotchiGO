@@ -165,6 +165,19 @@ tamago:not([debugger]) {
 		width: min(94vw, 700px);
 	}
 
+	.catchup-status {
+		background: rgba(247, 250, 250, 0.96);
+		border: 1px solid #c8d5d8;
+		border-radius: 10px;
+		color: #345155;
+		font-size: 12px;
+		line-height: 1.6;
+		margin: 0;
+		padding: 8px 12px;
+		text-align: center;
+		width: min(94vw, 700px);
+	}
+
 	.register-log {
 		background: rgba(247, 250, 250, 0.96);
 		border: 1px solid #c8d5d8;
@@ -204,6 +217,79 @@ tamago:not([debugger]) {
 		max-width: 700px;
 		position: relative;
 		width: min(94vw, 700px);
+	}
+
+	.catchup-overlay {
+		align-items: center;
+		background: rgba(15, 28, 31, 0.58);
+		border-radius: 20px;
+		display: flex;
+		inset: 0;
+		justify-content: center;
+		padding: 24px;
+		position: absolute;
+		z-index: 3;
+	}
+
+	.catchup-overlay[hidden] {
+		display: none;
+	}
+
+	.catchup-overlay-card {
+		background: rgba(248, 251, 251, 0.96);
+		border: 1px solid rgba(122, 144, 149, 0.48);
+		border-radius: 16px;
+		box-shadow: 0 12px 28px rgba(14, 22, 21, 0.18);
+		color: #203236;
+		max-width: 360px;
+		padding: 18px 18px 16px;
+		text-align: left;
+		width: 100%;
+
+		strong {
+			display: block;
+			font-size: 18px;
+			margin-bottom: 6px;
+		}
+
+		p {
+			color: #4b6267;
+			font-size: 13px;
+			line-height: 1.6;
+			margin: 0 0 12px;
+		}
+	}
+
+	.catchup-progress {
+		background: rgba(181, 198, 201, 0.45);
+		border-radius: 999px;
+		height: 10px;
+		overflow: hidden;
+	}
+
+	.catchup-progress-fill {
+		background: linear-gradient(90deg, #5ca96f, #7bcf8f);
+		border-radius: 999px;
+		height: 100%;
+		transition: width 120ms linear;
+		width: 0;
+	}
+
+	.catchup-progress-label,
+	.catchup-elapsed,
+	.catchup-remaining {
+		color: #345155;
+		font-size: 12px;
+		line-height: 1.6;
+	}
+
+	.catchup-progress-label {
+		font-weight: 700;
+		margin-top: 8px;
+	}
+
+	.catchup-elapsed {
+		margin-top: 6px;
 	}
 
 	.screen-layer {
@@ -370,6 +456,10 @@ tamago:not([debugger]) {
 	.user-keys button:focus-visible {
 		outline: 2px solid #1d6f58;
 		outline-offset: 2px;
+	}
+
+	&.is-catchup-running .user-keys button {
+		pointer-events: none;
 	}
 }
 

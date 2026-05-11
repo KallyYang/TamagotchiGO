@@ -28,6 +28,11 @@ function encode(data) {
 	return output.join("");
 }
 
+function as_number(value, fallback) {
+	value = Number(value);
+	return isFinite(value) ? value : fallback;
+}
+
 function get_storage() {
 	try {
 		if (typeof window !== "undefined" && window.localStorage) {
@@ -147,6 +152,53 @@ eeprom.prototype.import_data = function (payload) {
 
 	this.data = normalize_data(data, this.byte_size);
 	this.save();
+	return true;
+};
+
+eeprom.prototype.export_state = function () {
+	return {
+		format: "tamago-eeprom-runtime-v1",
+		byteSize: this.byte_size,
+		data: encode(this.data),
+		last_pow: this.last_pow ? 1 : 0,
+		last_clk: this.last_clk ? 1 : 0,
+		last_data: this.last_data ? 1 : 0,
+		state: as_number(this.state, DISABLED),
+		output: this.output ? 1 : 0,
+		bits_tx: as_number(this.bits_tx, 0),
+		read: as_number(this.read, 0),
+		address: as_number(this.address, 0),
+		addressbyte: as_number(this.addressbyte, 0)
+	};
+};
+
+eeprom.prototype.import_state = function (snapshot) {
+	var data;
+
+	if (!snapshot || snapshot.format !== "tamago-eeprom-runtime-v1") {
+		return false;
+	}
+
+	data = decode(snapshot.data);
+	if (!data) {
+		return false;
+	}
+
+	this.data = normalize_data(data, this.byte_size);
+	if (this.save_timer) {
+		clearTimeout(this.save_timer);
+		this.save_timer = null;
+	}
+
+	this.last_pow = snapshot.last_pow ? 1 : 0;
+	this.last_clk = snapshot.last_clk ? 1 : 0;
+	this.last_data = snapshot.last_data ? 1 : 0;
+	this.state = as_number(snapshot.state, DISABLED);
+	this.output = snapshot.output ? 1 : 0;
+	this.bits_tx = as_number(snapshot.bits_tx, 0) % 9;
+	this.read = as_number(snapshot.read, 0) & 0xFF;
+	this.address = as_number(snapshot.address, 0) & this.mask;
+	this.addressbyte = as_number(snapshot.addressbyte, 0) % (this.address_width + 1);
 	return true;
 };
 

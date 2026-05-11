@@ -10,6 +10,7 @@ function AudioOutput() {
   this.Context = window.AudioContext || window.webkitAudioContext;
   this.supported = Boolean(this.Context);
   this.enabled = true;
+  this.suppressed = false;
   this.context = null;
   this.master = null;
   this.primed = false;
@@ -30,6 +31,21 @@ AudioOutput.prototype.toggle = function () {
   }
 
   return this.enabled;
+};
+
+AudioOutput.prototype.setSuppressed = function (suppressed) {
+  this.suppressed = Boolean(suppressed);
+
+  clearTimeout(this.keyFallbackTimer);
+  this.keyFallbackTimer = null;
+
+  if (this.master) {
+    if (this.suppressed || !this.enabled) {
+      this.master.gain.value = 0;
+    } else {
+      this.master.gain.value = 0.22;
+    }
+  }
 };
 
 AudioOutput.prototype.ensureContext = function () {
@@ -125,6 +141,10 @@ AudioOutput.prototype.playKey = function (code) {
     return;
   }
 
+  if (this.suppressed) {
+    return;
+  }
+
   clearTimeout(this.keyFallbackTimer);
   this.keyFallbackTimer = setTimeout(function () {
     that.unlock(function () {
@@ -153,6 +173,10 @@ AudioOutput.prototype.write = function (addr, value) {
       );
     }
   } catch (e) {}
+
+  if (this.suppressed) {
+    return;
+  }
 
   if (!this.enabled || !this.context || this.context.state === "closed") {
     return;
@@ -233,6 +257,10 @@ AudioOutput.prototype.playTone = function (
     gain;
 
   if (!this.context || this.context.state === "closed") {
+    return;
+  }
+
+  if (this.suppressed) {
     return;
   }
 
