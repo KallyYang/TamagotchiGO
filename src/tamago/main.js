@@ -10,6 +10,7 @@ var config = require("./config.js"),
   portTemplate = require("../templates/port.html");
 
 var FRAME_MS = 1000 / 60,
+  UI_BUTTON_MIN_PRESS_MS = 90,
   CATCHUP_BUDGET_MS = offlineCatchup.DEFAULT_EXACT_BUDGET_MS,
   CATCHUP_BENCHMARK_FRAMES = 90,
   CATCHUP_CHUNK_TARGET_MS = 18,
@@ -261,27 +262,98 @@ function Tamago(element) {
   }
 
   [].forEach.call(element.querySelectorAll(".user-keys button"), function (btn) {
-    var code = Number(btn.dataset.key);
+    var code = Number(btn.dataset.key),
+      pressed = false,
+      pressedAtMs = 0,
+      releaseTimer = null,
+      usesPointerEvents = typeof window !== "undefined" && typeof window.PointerEvent === "function";
 
-    function handleKeyDown(event) {
-      if (event.type.indexOf("touch") === 0) {
-        event.preventDefault();
-      }
-      if (that.inputBlocked()) {
+    function clearReleaseTimer() {
+      if (!releaseTimer) {
         return;
       }
+
+      clearTimeout(releaseTimer);
+      releaseTimer = null;
+    }
+
+    function syncPressedState(active) {
+      btn.classList.toggle("is-pressed", active);
+    }
+
+    function preventDefaultIfPossible(event) {
+      if (event && event.cancelable) {
+        event.preventDefault();
+      }
+    }
+
+    function finishRelease(event) {
+      pressed = false;
+      releaseTimer = null;
+      that.system.keys |= that.mapping[code] || 0;
+      syncPressedState(false);
+
+      if (event && event.pointerId != null && btn.releasePointerCapture) {
+        try {
+          btn.releasePointerCapture(event.pointerId);
+        } catch (e) {}
+      }
+    }
+
+    function handleKeyDown(event) {
+      preventDefaultIfPossible(event);
+      clearReleaseTimer();
+
+      if (pressed || that.inputBlocked()) {
+        return;
+      }
+
+      pressed = true;
+      pressedAtMs = +new Date();
+
       if (that.audio.enabled) {
         that.audio.unlock();
       }
+
       that.audio.playKey(code);
       that.system.keys &= ~(that.mapping[code] || 0);
+      syncPressedState(true);
+
+      if (event && event.pointerId != null && btn.setPointerCapture) {
+        try {
+          btn.setPointerCapture(event.pointerId);
+        } catch (e) {}
+      }
     }
 
     function handleKeyUp(event) {
-      if (event.type.indexOf("touch") === 0) {
-        event.preventDefault();
+      var remaining;
+
+      preventDefaultIfPossible(event);
+
+      if (!pressed) {
+        return;
       }
-      that.system.keys |= that.mapping[code] || 0;
+
+      remaining = UI_BUTTON_MIN_PRESS_MS - (+new Date() - pressedAtMs);
+
+      if (remaining > 0) {
+        clearReleaseTimer();
+        releaseTimer = setTimeout(function () {
+          finishRelease();
+        }, remaining);
+        return;
+      }
+
+      finishRelease(event);
+    }
+
+    if (usesPointerEvents) {
+      btn.addEventListener("pointerdown", handleKeyDown);
+      btn.addEventListener("pointerup", handleKeyUp);
+      btn.addEventListener("pointercancel", handleKeyUp);
+      btn.addEventListener("pointerleave", handleKeyUp);
+      return;
     }
 
     btn.addEventListener("mousedown", handleKeyDown);
@@ -574,6 +646,7 @@ Tamago.prototype.bootstrapRuntime = function () {
 
     if (!running) {
       that.refresh();
+      that.queueAutoStart();
       return;
     }
 
