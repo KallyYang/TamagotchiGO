@@ -35,10 +35,10 @@ Quick Start
  * macOS: `start-mac.command`
  * Windows: `start-windows.bat`
 
-首次启动时，脚本会自动检查依赖；如果缺少依赖，会自动执行 `npm install`。
-启动脚本会在本地拉起一个静态服务并自动打开默认浏览器。
+首次启动时，脚本会自动检查依赖；如果缺少依赖，会自动执行 `npm install`，并在需要时自动构建前端资源。
+启动脚本会在本地拉起一个静态服务并自动打开默认浏览器，默认地址是 `http://127.0.0.1:9001`；如果端口被占用，会自动顺延到下一个可用端口。
 
-详细的终端用户说明见 [docs/user-guide.md](/Users/xiyu/Documents/code/tamago/docs/user-guide.md)。
+详细的终端用户说明见 [docs/user-guide.md](docs/user-guide.md)。
 
 Manual Commands
 ---------------
@@ -47,6 +47,14 @@ Manual Commands
 
 ```
 npm install
+npm run start:app
+```
+
+`npm run start:app` 会先检查依赖，并在检测到 `web/` 构建产物过期或缺失时自动重新构建。
+
+如果你希望显式地单独构建静态资源，也可以运行：
+
+```
 npm run build:web
 npm run start:app
 ```
@@ -62,6 +70,21 @@ npm run dev
 ```
 
 默认会打开浏览器访问本地地址；如果浏览器没有自动打开，可以手动访问启动日志里显示的 `http://127.0.0.1:<port>`。
+
+Validation
+----------
+
+为了方便继续维护，仓库还提供了两个可直接运行的回归脚本：
+
+```
+npm run test:rom
+npm run test:runtime
+```
+
+其中：
+
+ * `test:rom` 会检查 BIOS / 内置人物芯片在启动和按键交互下的基础运行情况
+ * `test:runtime` 会检查运行时状态导出 / 导入、离线补时规划和恢复后的行为一致性
 
 GitHub Pages
 ------------
@@ -83,21 +106,27 @@ npm run build:web
 
 首次启用时，请到仓库 `Settings -> Pages`，将 `Source` 设置为 `GitHub Actions`。
 
-当前仓库如果继续使用 `zhouxiyu1997/TamagotchiGO` 这个远端地址，默认访问地址会是：
-
-```
-https://zhouxiyu1997.github.io/TamagotchiGO/
-```
-
 项目里的脚本、样式和二进制资源都使用相对路径，因此作为 GitHub Pages 项目站点发布时不需要额外配置 base path。
 
-存档说明
---------
+页面功能与存档说明
+------------------
 
-项目的 EEPROM 存档默认保存在当前浏览器的 `localStorage` 中，不会上传到 GitHub Pages，也不会自动在不同设备或不同浏览器之间同步。
+当前页面内已经提供这些更适合直接使用的功能：
+
+ * 内置人物芯片切换，以及自定义 `.bin` 芯片拖拽载入
+ * `1x / 2x / 4x / 8x / 16x` 速度控制
+ * 更稳定的声音输出，以及移动端首次交互后的音频解锁兼容
+ * 页面内的“寄存器日志”面板，可查看声音 / SPI / 部分硬件事件
+ * EEPROM 存档导出 / 导入，以及页面内的本地存档提示
+ * 页面回到前台后的自动补时状态提示与进度展示
+
+项目的 EEPROM 存档默认保存在当前浏览器的 `localStorage` 中，不会上传到任何服务器，也不会自动在不同设备或不同浏览器之间同步。
 
 这意味着：
 
  * 同一台设备、同一个浏览器、同一个站点地址下，刷新页面或下次再打开时，存档通常会继续保留。
  * 如果用户清理浏览器数据、使用无痕模式、换浏览器或换设备，原有本地存档不会自动带过去。
  * 页面里的“导出存档 / 导入存档”按钮可用于手动备份和恢复。
+ * 页面切到后台或离开一段时间后，再次返回时会尽量按离线时长自动追赶运行状态。
+
+如果你主要是给普通终端用户使用，建议优先让他们从双击启动脚本进入，并配合 [docs/user-guide.md](docs/user-guide.md) 一起分发。
