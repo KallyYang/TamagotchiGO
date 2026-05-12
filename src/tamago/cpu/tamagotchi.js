@@ -6,7 +6,8 @@ var r6502 = require("./6502.js"),
 
 var ACCESS_READ		= 0x01,
 		ACCESS_WRITE	= 0x02,
-		FRAME_SECONDS = 1 / 60;
+		FRAME_SECONDS = 1 / 60,
+		FRAME_EPSILON = 1e-9;
 
 function create_timer(lowReg, highReg, controlReg, enableMask, irq) {
 	return {
@@ -112,6 +113,7 @@ function system() {
 	this.previous_clock = 0;
 	this.inserted_figure = 0;
 	this.speed_multiplier = 1;
+	this.frame_progress_seconds = 0;
 
 	// Convert a 16bit mask into a priority encoded IRQ table
 	var irqs = new Uint16Array(this.bios, 0x3FC0, 16);
@@ -131,7 +133,6 @@ system.prototype.PALETTE = [0xffdddddd, 0xff9e9e9e, 0xff606060, 0xff222222];
 
 system.prototype.CLOCK_RATE = 4000000; // 4MHz
 system.prototype.MAX_ADVANCE = 1;
-system.prototype.MAX_FRAME_CYCLES = 260000;
 system.prototype.MAX_FRAME_MS = 8;
 system.prototype.LCD_ORDER = [
 	0x0C0, 0x0CC, 0x0D8, 0x0E4, 
@@ -301,17 +302,6 @@ system.prototype.step = function () {
 	return cycles;
 };
 
-system.prototype.compute_frame_slice = function (deltaSeconds) {
-	var speed = Math.max(1, this.speed_multiplier || 1),
-		cycles = Math.min(this.CLOCK_RATE * deltaSeconds * speed, this.MAX_FRAME_CYCLES),
-		effective_speed = deltaSeconds ? Math.max(1, Math.round(cycles / (this.CLOCK_RATE * deltaSeconds))) : 1;
-
-	return {
-		cycles: cycles,
-		frameEvents: Math.min(4, effective_speed)
-	};
-};
-
 system.prototype.execute_cycle_budget = function (deadlineMs) {
 	var steps = 0,
 		dropped = false;
@@ -331,11 +321,64 @@ system.prototype.execute_cycle_budget = function (deadlineMs) {
 	};
 };
 
+system.prototype.process_virtual_seconds = function (virtualSeconds, options) {
+	var remaining = Math.max(0, virtualSeconds || 0),
+		frame = {
+			virtualSeconds: remaining,
+			cycles: 0,
+			frameEvents: 0,
+			execution: {
+				steps: 0,
+				dropped: false
+			}
+		},
+		sliceSeconds,
+		frameRemaining,
+		execution;
+
+	options || (options = {});
+
+	// Keep high speed modes frame-accurate by stepping through each virtual frame
+	// boundary instead of batching multiple NMIs into a single instant.
+	while (remaining > FRAME_EPSILON) {
+		frameRemaining = FRAME_SECONDS - this.frame_progress_seconds;
+		if (frameRemaining <= FRAME_EPSILON) {
+			this.frame_progress_seconds = 0;
+			frameRemaining = FRAME_SECONDS;
+		}
+
+		if (this.frame_progress_seconds <= FRAME_EPSILON) {
+			this.frame_progress_seconds = 0;
+			this.fire_nmi(6);
+			frame.frameEvents++;
+		}
+
+		sliceSeconds = Math.min(remaining, frameRemaining);
+		this.cycles += this.CLOCK_RATE * sliceSeconds;
+		frame.cycles += this.CLOCK_RATE * sliceSeconds;
+		execution = this.execute_cycle_budget(options.deadlineMs);
+		frame.execution.steps += execution.steps;
+
+		if (execution.dropped) {
+			frame.execution.dropped = true;
+			break;
+		}
+
+		this.frame_progress_seconds += sliceSeconds;
+		if (this.frame_progress_seconds >= FRAME_SECONDS - FRAME_EPSILON) {
+			this.frame_progress_seconds = 0;
+		}
+
+		remaining -= sliceSeconds;
+	}
+
+	return frame;
+};
+
 system.prototype.process_frame_slice = function (deltaSeconds, options) {
-	var frame = this.compute_frame_slice(deltaSeconds),
-		frameEvents = frame.frameEvents,
+	var speed = Math.max(1, this.speed_multiplier || 1),
 		nowSeconds,
-		i;
+		frame;
 
 	options || (options = {});
 	if (options.updateClock !== false) {
@@ -346,12 +389,8 @@ system.prototype.process_frame_slice = function (deltaSeconds, options) {
 		this.previous_clock = nowSeconds;
 	}
 
-	this.cycles += frame.cycles;
-	for (i = 0; i < frameEvents; i++) {
-		this.fire_nmi(6);
-	}
-
-	frame.execution = this.execute_cycle_budget(options.deadlineMs);
+	frame = this.process_virtual_seconds(deltaSeconds * speed, options);
+	frame.speedMultiplier = speed;
 	return frame;
 };
 
@@ -490,7 +529,8 @@ system.prototype.export_state = function (options) {
 		},
 		timing: {
 			previousClock: as_number(this.previous_clock, 0),
-			speedMultiplier: as_number(this.speed_multiplier, 1)
+			speedMultiplier: as_number(this.speed_multiplier, 1),
+			frameProgressSeconds: as_number(this.frame_progress_seconds, 0)
 		}
 	};
 };
@@ -534,6 +574,10 @@ system.prototype.import_state = function (snapshot, options) {
 	this.inserted_figure = snapshot.figure ? as_number(snapshot.figure.inserted, 0) : 0;
 	this.speed_multiplier = snapshot.timing ? Math.max(1, as_number(snapshot.timing.speedMultiplier, 1)) : 1;
 	this.previous_clock = snapshot.timing ? as_number(snapshot.timing.previousClock, 0) : 0;
+	this.frame_progress_seconds = snapshot.timing ? Math.max(0, as_number(snapshot.timing.frameProgressSeconds, 0)) : 0;
+	if (this.frame_progress_seconds >= FRAME_SECONDS - FRAME_EPSILON) {
+		this.frame_progress_seconds = 0;
+	}
 
 	this.a = snapshot.cpu ? as_number(snapshot.cpu.a, 0) & 0xFF : 0;
 	this.x = snapshot.cpu ? as_number(snapshot.cpu.x, 0) & 0xFF : 0;
@@ -637,6 +681,7 @@ system.prototype.reset = function () {
 	this._cpuacc.fill(0);
 	this.reset_peripherals();
 	this.previous_clock = +new Date() / 1000;
+	this.frame_progress_seconds = 0;
 	r6502.r6502.reset.call(this);
 };
 

@@ -17,6 +17,7 @@ var VERIFY_FRAMES = 30;
 var BENCHMARK_FRAMES = 30;
 var BUDGET_MS = 15000;
 var THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+var FRAME_SECONDS = 1 / 60;
 
 function loadArrayBuffer(filePath) {
 	var data = fs.readFileSync(filePath);
@@ -158,6 +159,49 @@ function testIrStateSnapshot(scenario) {
 	assertSameState("IR response trace playback should survive snapshot restore", original, restored);
 }
 
+function testPartialFrameSnapshot(scenario) {
+	var original = createSystem(scenario);
+	var restored = createSystem();
+	var snapshot;
+
+	original.speed_multiplier = 16;
+	original.process_frame_slice(FRAME_SECONDS / 2, {
+		updateClock: false
+	});
+	snapshot = original.export_state({
+		includeSpiRom: scenario.includeSpiRom
+	});
+
+	assert(importState(restored, snapshot, scenario), scenario.name + " should import partial-frame snapshot");
+	assertSameState(scenario.name + " partial-frame progress should survive snapshot restore", original, restored);
+}
+
+function testSpeedMultiplierScaling() {
+	var expectedCycles = tamagotchi.system.prototype.CLOCK_RATE * FRAME_SECONDS;
+	var speeds = [1, 2, 4, 8, 16];
+	var i;
+	var system;
+	var frame;
+
+	for (i = 0; i < speeds.length; i++) {
+		system = createSystem();
+		system.speed_multiplier = speeds[i];
+		frame = system.process_frame_slice(FRAME_SECONDS, {
+			updateClock: false
+		});
+
+		assert.strictEqual(
+			frame.frameEvents,
+			speeds[i],
+			"speed " + speeds[i] + "x should replay one virtual frame per multiplier step"
+		);
+		assert(
+			Math.abs(frame.cycles - (expectedCycles * speeds[i])) < 1e-6,
+			"speed " + speeds[i] + "x should scale cycle budget linearly"
+		);
+	}
+}
+
 function testBudgetEstimate(scenario) {
 	var snapshotSource = createSystem(scenario);
 	var probe = createSystem();
@@ -251,6 +295,8 @@ function main() {
 	}
 
 	testIrStateSnapshot(scenarios[1]);
+	testPartialFrameSnapshot(scenarios[0]);
+	testSpeedMultiplierScaling();
 	budget = testBudgetEstimate(scenarios[0]);
 	planner = testCatchupPlanner(budget.framesPerMs);
 
