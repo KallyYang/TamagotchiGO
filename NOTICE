@@ -1,0 +1,37 @@
+This repository contains material with different provenance.
+
+1. Maintainer-authored contributions
+
+Unless otherwise noted, original code and original modifications authored
+for this repository by the current maintainer are made available under
+the GNU General Public License, version 3 or any later version
+("GPL-3.0-or-later"). See the top-level LICENSE file.
+
+2. Upstream-derived material
+
+This repository is based on Bryon Vandiver ("asterick") and the upstream
+project commonly referenced as "asterick/tamago".
+
+The presence of a GPL license file in this repository does not by itself
+relicense upstream material beyond the rights granted by the original
+copyright holders. When redistributing upstream-derived portions, preserve
+their existing notices and review the upstream project's license metadata
+and history as appropriate.
+
+3. Third-party assets and rights-sensitive files
+
+This repository includes third-party assets and/or files that may require
+separate permission, attribution, or license review. This includes, at a
+minimum, the following paths:
+
+  - web/files/*.bin
+  - web/files/GPLB5x.txt
+  - web/font/*
+  - less/fontawesome/*
+
+Some files may also carry their own inline notices, such as the Font
+Awesome licensing notes in less/runtime.less.
+
+Unless a file or directory explicitly states otherwise, do not assume that
+all bundled assets are relicensed under GPL-3.0-or-later solely because
+they are present in this repository.

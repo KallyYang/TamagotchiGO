@@ -28,7 +28,7 @@
     "url": "git://github.com/asterick/tamago.git"
   },
   "author": "",
-  "license": "BSD",
+  "license": "GPL-3.0-or-later",
   "gitHead": "36079abe4b7f6008a5238ea1514fa7ab02893adc",
   "bugs": {
     "url": "https://github.com/asterick/tamago/issues"
