@@ -339,6 +339,24 @@ Tamago.prototype.refreshFigureLabel = function () {
   }
 };
 
+Tamago.prototype.applySpeedMultiplier = function (value) {
+  var nextSpeed = Math.max(1, Number(value) || 1);
+
+  if (this.body.speedSelect && this.body.speedSelect.value !== String(nextSpeed)) {
+    this.body.speedSelect.value = String(nextSpeed);
+  }
+
+  if (this.system.speed_multiplier === nextSpeed) {
+    return false;
+  }
+
+  this.system.speed_multiplier = nextSpeed;
+  this.system.previous_clock = +new Date() / 1000;
+  this.system.cycles = 0;
+  this.persistRuntimeState(+new Date());
+  return true;
+};
+
 Tamago.prototype.refreshRunButton = function (target) {
   if (target && target.attributes && target.attributes.value) {
     target.attributes.value.value = this.running ? "stop" : "run";
@@ -1317,12 +1335,16 @@ Tamago.prototype.configure = function (element) {
   }
 
   if (this.body.speedSelect) {
-    this.body.speedSelect.addEventListener("change", function (e) {
-      that.system.speed_multiplier = Number(e.target.value) || 1;
-      that.system.previous_clock = +new Date() / 1000;
-      that.system.cycles = 0;
-      that.persistRuntimeState(+new Date());
-    });
+    function handleSpeedSelection(e) {
+      if (that.inputBlocked()) {
+        return;
+      }
+
+      that.applySpeedMultiplier(e.target.value);
+    }
+
+    this.body.speedSelect.addEventListener("input", handleSpeedSelection);
+    this.body.speedSelect.addEventListener("change", handleSpeedSelection);
   }
 
   var soundButton = element.querySelector("button[action=sound]");
