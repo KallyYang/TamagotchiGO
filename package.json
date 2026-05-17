@@ -7,21 +7,23 @@
     "dev": "node ./node_modules/grunt-cli/bin/grunt dev",
     "start:app": "node ./scripts/launch.js",
     "test:rom": "node ./scripts/rom-regression.js",
-    "test:runtime": "node ./scripts/runtime-catchup.js"
+    "test:runtime": "node ./scripts/runtime-catchup.js",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "browserify-ejs": "0.0.2",
-    "grunt-contrib-uglify": "~0.2.7",
-    "grunt": "~0.4.2",
+    "grunt-contrib-uglify": "~5.2.2",
+    "grunt": "~1.6.1",
     "grunt-cli": "^1.5.0",
-    "grunt-browserify": "~1.2.11",
-    "grunt-contrib-watch": "~0.5.3",
-    "grunt-contrib-connect": "~0.5.0",
-    "browserify": "~2.36.0",
-    "grunt-contrib-less": "~0.8.2"
+    "grunt-browserify": "~6.0.0",
+    "grunt-contrib-watch": "~1.1.0",
+    "grunt-contrib-connect": "~5.0.1",
+    "browserify": "~17.0.0",
+    "grunt-contrib-less": "~3.0.0"
   },
   "repository": {
     "type": "git",

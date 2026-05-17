@@ -41,7 +41,7 @@
   font-style: normal;
   text-decoration: inherit;
   -webkit-font-smoothing: antialiased;
-  *margin-right: .3em;
+  *margin-right: 0.3em;
 }
 [class^="icon-"]:before,
 [class*=" icon-"]:before {
@@ -52,7 +52,7 @@
 /* makes the font 33% larger relative to the icon container */
 .icon-large:before {
   vertical-align: -10%;
-  font-size: 1.3333333333333333em;
+  font-size: 1.33333333em;
 }
 /* makes sure icons active on rollover in links */
 a [class^="icon-"],
@@ -63,16 +63,16 @@ a [class*=" icon-"] {
 [class^="icon-"].icon-fixed-width,
 [class*=" icon-"].icon-fixed-width {
   display: inline-block;
-  width: 1.1428571428571428em;
+  width: 1.14285714em;
   text-align: right;
-  padding-right: 0.2857142857142857em;
+  padding-right: 0.28571429em;
 }
 [class^="icon-"].icon-fixed-width.icon-large,
 [class*=" icon-"].icon-fixed-width.icon-large {
-  width: 1.4285714285714286em;
+  width: 1.42857143em;
 }
 .icons-ul {
-  margin-left: 2.142857142857143em;
+  margin-left: 2.14285714em;
   list-style-type: none;
 }
 .icons-ul > li {
@@ -80,8 +80,8 @@ a [class*=" icon-"] {
 }
 .icons-ul .icon-li {
   position: absolute;
-  left: -2.142857142857143em;
-  width: 2.142857142857143em;
+  left: -2.14285714em;
+  width: 2.14285714em;
   text-align: center;
   line-height: inherit;
 }
@@ -90,17 +90,17 @@ a [class*=" icon-"] {
   display: none;
 }
 .icon-muted {
-  color: #eeeeee;
+  color: #eee;
 }
 .icon-light {
-  color: #ffffff;
+  color: #fff;
 }
 .icon-dark {
-  color: #333333;
+  color: #333;
 }
 .icon-border {
-  border: solid 1px #eeeeee;
-  padding: .2em .25em .15em;
+  border: solid 1px #eee;
+  padding: 0.2em 0.25em 0.15em;
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
   border-radius: 3px;
@@ -149,11 +149,11 @@ a [class*=" icon-"] {
 }
 [class^="icon-"].pull-left,
 [class*=" icon-"].pull-left {
-  margin-right: .3em;
+  margin-right: 0.3em;
 }
 [class^="icon-"].pull-right,
 [class*=" icon-"].pull-right {
-  margin-left: .3em;
+  margin-left: 0.3em;
 }
 /* EXTRAS
  * -------------------------- */
@@ -1394,6 +1394,10 @@ body {
   font-size: 14px;
   margin: 0;
   min-height: 100vh;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 * {
   box-sizing: border-box;
@@ -1415,7 +1419,7 @@ body {
 }
 tamago {
   display: block;
-  min-height: calc(14vh);
+  min-height: calc(100vh - 86px);
   width: 100%;
 }
 tamago:not([debugger]) column {
@@ -1428,7 +1432,7 @@ tamago:not([debugger]) display {
   flex-direction: column;
   gap: 12px;
   justify-content: center;
-  min-height: calc(14vh);
+  min-height: calc(100vh - 86px);
   padding: 12px 20px 24px;
   text-align: center;
 }
@@ -1459,8 +1463,10 @@ tamago:not([debugger]) .speed-selector select {
   color: #182427;
   cursor: pointer;
   font: inherit;
+  min-height: 40px;
   min-width: 120px;
   padding: 8px 32px 8px 12px;
+  touch-action: manipulation;
 }
 tamago:not([debugger]) .figure-selector {
   position: relative;
@@ -1488,7 +1494,8 @@ tamago:not([debugger]) .speed-selector:after {
 tamago:not([debugger]) .sound-toggle,
 tamago:not([debugger]) .register-log-toggle,
 tamago:not([debugger]) .save-export,
-tamago:not([debugger]) .save-import {
+tamago:not([debugger]) .save-import,
+tamago:not([debugger]) .cloud-toggle {
   appearance: none;
   background: #213033;
   border: 1px solid #213033;
@@ -1497,8 +1504,19 @@ tamago:not([debugger]) .save-import {
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+  min-height: 40px;
   min-width: 92px;
   padding: 8px 12px;
+  touch-action: manipulation;
+}
+tamago:not([debugger]) .cloud-toggle {
+  background: #2f5d6c;
+  border-color: #284e5a;
+}
+tamago:not([debugger]) .cloud-toggle.cloud-config {
+  background: #ffffff;
+  border-color: #2f5d6c;
+  color: #2f5d6c;
 }
 tamago:not([debugger]) .sound-toggle.is-active,
 tamago:not([debugger]) .register-log-toggle.is-active {
@@ -1509,7 +1527,8 @@ tamago:not([debugger]) .register-log-toggle.is-active {
 tamago:not([debugger]) .sound-toggle:disabled,
 tamago:not([debugger]) .register-log-toggle:disabled,
 tamago:not([debugger]) .save-export:disabled,
-tamago:not([debugger]) .save-import:disabled {
+tamago:not([debugger]) .save-import:disabled,
+tamago:not([debugger]) .cloud-toggle:disabled {
   background: #d5dddf;
   border-color: #c5d0d3;
   color: #6d7b7f;
@@ -1645,13 +1664,13 @@ tamago:not([debugger]) .screen-layer {
   background: rgba(158, 166, 160, 0.96);
   border-radius: 6px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 0 18px rgba(26, 31, 30, 0.32), 0 1px 3px rgba(15, 22, 20, 0.28);
-  height: 37.95%;
-  left: 30.8%;
+  height: 45.5%;
+  left: 27.05%;
   overflow: hidden;
   pointer-events: none;
   position: absolute;
-  top: 31.8%;
-  width: 37.95%;
+  top: 28.05%;
+  width: 45.9%;
 }
 tamago:not([debugger]) .glyph-row {
   align-items: center;
@@ -1752,13 +1771,13 @@ tamago:not([debugger]) .user-keys button {
   color: transparent;
   cursor: pointer;
   font-size: 0;
-  height: 8.8%;
+  height: 11.5%;
   padding: 0;
   pointer-events: auto;
   position: absolute;
   touch-action: none;
   transform: translate(-50%, -50%);
-  width: 8.8%;
+  width: 11.5%;
 }
 tamago:not([debugger]) .user-keys .key-a {
   left: 36%;
@@ -1783,25 +1802,131 @@ tamago:not([debugger]) .user-keys button:focus-visible {
 tamago:not([debugger]).is-catchup-running .user-keys button {
   pointer-events: none;
 }
-@media (max-width: 520px) {
+@media (max-width: 760px) {
   .site-notice {
+    font-size: 11.5px;
     padding: 10px 14px 0;
   }
-  tamago:not([debugger]) {
-    min-height: calc(-12vh);
-  }
   tamago:not([debugger]) display {
-    min-height: calc(-12vh);
-    padding: 10px 8px 18px;
+    padding: 10px 10px 18px;
+  }
+  tamago:not([debugger]) .control-row {
+    gap: 8px;
+  }
+  tamago:not([debugger]) .figure-selector select,
+  tamago:not([debugger]) .speed-selector select,
+  tamago:not([debugger]) .sound-toggle,
+  tamago:not([debugger]) .register-log-toggle,
+  tamago:not([debugger]) .save-export,
+  tamago:not([debugger]) .save-import,
+  tamago:not([debugger]) .cloud-toggle {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+  tamago:not([debugger]) .speed-selector {
+    flex: 1 1 calc(50% - 8px);
+  }
+  tamago:not([debugger]) .speed-selector select {
+    width: 100%;
   }
   tamago:not([debugger]) .device-shell {
+    width: min(96vw, 520px);
+  }
+}
+@media (max-width: 520px) {
+  .site-notice {
+    font-size: 11px;
+    padding: 8px 12px 0;
+  }
+  tamago:not([debugger]) {
+    min-height: calc(100vh - 110px);
+  }
+  tamago:not([debugger]) display {
+    min-height: calc(100vh - 110px);
+    padding: 8px 6px 14px;
+    gap: 10px;
+  }
+  tamago:not([debugger]) .control-row {
+    gap: 6px;
+  }
+  tamago:not([debugger]) .figure-selector select,
+  tamago:not([debugger]) .speed-selector select,
+  tamago:not([debugger]) .sound-toggle,
+  tamago:not([debugger]) .register-log-toggle,
+  tamago:not([debugger]) .save-export,
+  tamago:not([debugger]) .save-import,
+  tamago:not([debugger]) .cloud-toggle {
+    font-size: 13px;
+    min-height: 38px;
+    padding: 6px 10px;
+  }
+  tamago:not([debugger]) figure {
+    font-size: 13px;
+    min-height: 1.5em;
+    padding: 2px 0;
+  }
+  tamago:not([debugger]) .save-notice,
+  tamago:not([debugger]) .catchup-status {
+    font-size: 11.5px;
+    line-height: 1.55;
+    padding: 7px 10px;
     width: min(98vw, 700px);
+  }
+  tamago:not([debugger]) .register-log {
+    font-size: 11.5px;
+    max-height: 140px;
+    width: min(98vw, 700px);
+  }
+  tamago:not([debugger]) .device-shell {
+    width: min(98vw, 480px);
+  }
+  tamago:not([debugger]) .user-keys button {
+    height: 14%;
+    width: 14%;
+  }
+  tamago:not([debugger]) .catchup-overlay {
+    padding: 16px;
+  }
+  tamago:not([debugger]) .catchup-overlay-card {
+    padding: 14px;
+  }
+  tamago:not([debugger]) .catchup-overlay-card strong {
+    font-size: 16px;
+  }
+  tamago:not([debugger]) .catchup-overlay-card p {
+    font-size: 12px;
+  }
+}
+@media (max-width: 360px) {
+  tamago:not([debugger]) display {
+    padding: 6px 4px 12px;
+  }
+  tamago:not([debugger]) .figure-selector select,
+  tamago:not([debugger]) .speed-selector select,
+  tamago:not([debugger]) .sound-toggle,
+  tamago:not([debugger]) .register-log-toggle,
+  tamago:not([debugger]) .save-export,
+  tamago:not([debugger]) .save-import,
+  tamago:not([debugger]) .cloud-toggle {
+    flex-basis: 100%;
+  }
+  tamago:not([debugger]) .device-shell {
+    width: min(100vw, 380px);
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  tamago:not([debugger]) display {
+    min-height: auto;
+    padding: 6px 8px 12px;
+  }
+  tamago:not([debugger]) .device-shell {
+    width: min(70vh, 520px);
   }
 }
 tamago[debugger] {
   display: block;
   position: relative;
-  background: #ffffff;
+  background: #FFFFFF;
   color: #000000;
   font-family: monospace;
   min-height: auto;
@@ -1826,9 +1951,9 @@ tamago[debugger] display figure {
   margin: 0;
 }
 tamago[debugger] display canvas {
-  border: 2px solid #ffaaff;
+  border: 2px solid #faf;
   display: inline-block;
-  background: #eef3f4;
+  background: #EEF3F4;
   width: 192px;
   height: 124px;
 }
@@ -1875,7 +2000,7 @@ tamago[debugger] cpu flags flag:after {
   font-style: normal;
   text-decoration: inherit;
   -webkit-font-smoothing: antialiased;
-  *margin-right: .3em;
+  *margin-right: 0.3em;
   content: "\f096";
   display: block;
 }
@@ -1897,35 +2022,35 @@ tamago[debugger] disassembly instruction {
   height: 1em;
 }
 tamago[debugger] disassembly instruction.active {
-  background: #46b986;
+  background: #46B986;
 }
 tamago[debugger] disassembly instruction * {
   margin: 0;
   padding: 0 1ex;
 }
 tamago[debugger] disassembly instruction location {
-  color: #f06b2f;
+  color: #F06B2F;
   display: inline-block;
   width: 4ex;
 }
 tamago[debugger] disassembly instruction opcode {
-  color: #3e8887;
+  color: #3E8887;
   display: inline-block;
   width: 3ex;
 }
 tamago[debugger] disassembly instruction data {
   display: inline-block;
   width: 16ex;
-  color: #c15ea2;
+  color: #C15EA2;
 }
 tamago[debugger] disassembly instruction addressing {
-  color: #5dbcd0;
+  color: #5DBCD0;
   display: inline-block;
   width: 16ex;
 }
 tamago[debugger] disassembly instruction addressing:before,
 tamago[debugger] disassembly instruction addressing:after {
-  color: #d44a4d;
+  color: #D44A4D;
   display: inline;
 }
 tamago[debugger] disassembly instruction addressing[mode=immediate]:before {
@@ -1965,18 +2090,18 @@ tamago[debugger] disassembly instruction addressing[mode=absoluteY]:after {
   content: ", Y";
 }
 tamago[debugger] disassembly instruction[port]:after {
-  color: #21a671;
+  color: #21A671;
   content: "; " attr(port);
   text-align: left;
 }
 tamago[debugger] disassembly instruction:nth-child(even) {
-  background: #ffffff;
+  background: #FFFFFF;
 }
 tamago[debugger] disassembly instruction:nth-child(odd) {
-  background: #eef3f4;
+  background: #EEF3F4;
 }
 tamago[debugger] disassembly instruction.active {
-  background: #f6c439;
+  background: #F6C439;
 }
 tamago[debugger] port {
   display: block;
@@ -2036,11 +2161,11 @@ tamago[debugger] control row {
 }
 tamago[debugger] memory row:nth-child(even),
 tamago[debugger] control row:nth-child(even) {
-  background: #ffffff;
+  background: #FFFFFF;
 }
 tamago[debugger] memory row:nth-child(odd),
 tamago[debugger] control row:nth-child(odd) {
-  background: #eef3f4;
+  background: #EEF3F4;
 }
 tamago[debugger] memory row address,
 tamago[debugger] control row address {
@@ -2058,24 +2183,24 @@ tamago[debugger] control row byte {
 }
 tamago[debugger] memory row byte:nth-child(even),
 tamago[debugger] control row byte:nth-child(even) {
-  color: #5dbcd0;
+  color: #5DBCD0;
 }
 tamago[debugger] memory row byte:nth-child(odd),
 tamago[debugger] control row byte:nth-child(odd) {
-  color: #6fcde3;
+  color: #6FCDE3;
 }
 tamago[debugger] memory row byte.read,
 tamago[debugger] control row byte.read {
-  background: #d44a4d;
-  color: #ffffff;
+  background: #D44A4D;
+  color: #FFFFFF;
 }
 tamago[debugger] memory row byte.write,
 tamago[debugger] control row byte.write {
-  background: #21a671;
-  color: #ffffff;
+  background: #21A671;
+  color: #FFFFFF;
 }
 tamago[debugger] memory row byte.read.write,
 tamago[debugger] control row byte.read.write {
-  background: #daaf38;
-  color: #ffffff;
+  background: #DAAF38;
+  color: #FFFFFF;
 }

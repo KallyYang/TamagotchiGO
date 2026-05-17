@@ -108,6 +108,69 @@ npm run build:web
 
 项目里的脚本、样式和二进制资源都使用相对路径，因此作为 GitHub Pages 项目站点发布时不需要额外配置 base path。
 
+Cloudflare Worker + KV 部署（云端存档）
+--------------------------------------
+
+仓库新增了一份可直接部署到 Cloudflare 的 Worker 配置，可以同时承担两件事：
+
+ * 通过 Workers 的 Static Assets 托管 `web/` 静态站点；
+ * 提供 `/api/save` 端点，把 EEPROM 存档存放在 Cloudflare KV，跨设备共享。
+
+涉及的新文件：
+
+ * [`wrangler.toml`](wrangler.toml) — Wrangler 配置
+ * [`worker/worker.js`](worker/worker.js) — Worker 入口（静态资源 + `/api/save`）
+ * [`src/tamago/cloud_save.js`](src/tamago/cloud_save.js) — 浏览器端的云同步客户端
+
+部署步骤（Wrangler v3 / v4 均可）：
+
+```bash
+# 1. 安装 wrangler（首次）
+npm install -g wrangler
+wrangler login
+
+# 2. 创建 KV 命名空间，并把得到的 id / preview_id 写入 wrangler.toml
+wrangler kv namespace create tamago-saves
+wrangler kv namespace create tamago-saves --preview
+
+# 3. 可选：开启鉴权令牌（不配置时 API 完全公开）
+wrangler secret put SAVE_TOKEN
+
+# 4. 构建静态资源 & 部署
+npm install
+npm run build:web
+wrangler deploy
+```
+
+部署成功后访问 Worker 的域名即可使用模拟器；页面顶部会自动检测 `/api/save/health`，
+检测到 KV 已绑定时会显示 `☁ 上传到云端` / `☁ 从云端下载` / `云同步设置` 三个按钮：
+
+ * `☁ 上传到云端`：把当前 EEPROM 存档以 `tamago-eeprom-v1` 的格式 `PUT` 到 KV
+ * `☁ 从云端下载`：从 KV 拉取存档并热替换到模拟器
+ * `云同步设置`：设置 `slot`（默认 `default`，仅允许字母 / 数字 / `_` / `-`，最长 64 字符）和 `SAVE_TOKEN`，两者都保存在浏览器本地。
+
+API 简表：
+
+| 方法 | 路径 | 说明 |
+| ---- | ---- | ---- |
+| `GET` | `/api/save/health` | 探测端点，返回 `{ok, hasToken, kvBound}` |
+| `GET` | `/api/save?slot=xxx` | 拉取指定 slot 的存档 |
+| `PUT` | `/api/save?slot=xxx` | 写入存档（请求体格式同导出 JSON） |
+| `DELETE` | `/api/save?slot=xxx` | 删除存档 |
+
+如果配置了 `SAVE_TOKEN`，所有读写都需要在 `X-Save-Token` 请求头或 `?token=` query 中带上同样的值。
+
+> 注意：Cloudflare KV 不适合存超过 25 MiB 的内容，本仓库的 EEPROM 默认 4 KiB，远低于限制。
+> Worker 端额外做了 64 KiB hex 上限校验，避免被填满。
+
+本地调试 Worker（可选）：
+
+```bash
+npm run build:web
+npx wrangler dev
+# 默认端口 8787，浏览器打开 http://127.0.0.1:8787 即可
+```
+
 页面功能与存档说明
 ------------------
 

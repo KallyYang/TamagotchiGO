@@ -2,6 +2,7 @@ var config = require("./config.js"),
   audio = require("./audio.js"),
   offlineCatchup = require("./offline_catchup.js"),
   registerLog = require("./register_log.js"),
+  cloudSave = require("./cloud_save.js"),
   tamagotchi = require("./cpu/tamagotchi.js"),
   disassemble = require("./cpu/disassembler.js"),
   ports = require("./data/ports.js"),
@@ -1126,6 +1127,155 @@ Tamago.prototype.import_save = function (file) {
   reader.readAsText(file);
 };
 
+Tamago.prototype.detect_cloud_save = function () {
+  var that = this,
+    buttons = this.cloudButtons || {};
+
+  cloudSave
+    .isAvailable()
+    .then(function (info) {
+      var available = Boolean(info && info.available);
+      that.cloudAvailable = available;
+      if (buttons.upload) buttons.upload.hidden = !available;
+      if (buttons.download) buttons.download.hidden = !available;
+      if (buttons.config) buttons.config.hidden = !available;
+    })
+    .catch(function () {
+      that.cloudAvailable = false;
+    });
+};
+
+Tamago.prototype.cloud_push = function () {
+  var that = this,
+    payload;
+
+  if (!this.cloudAvailable) {
+    this.setCatchupStatus("云同步不可用。", CATCHUP_FAILED);
+    return;
+  }
+
+  try {
+    payload = this.system._eeprom.export_data();
+  } catch (e) {
+    this.setCatchupStatus("无法读取本地存档。", CATCHUP_FAILED);
+    return;
+  }
+
+  this.setCatchupStatus("正在上传存档…", CATCHUP_IDLE);
+
+  cloudSave.push(payload).then(
+    function (result) {
+      if (result && result.ok) {
+        that.setCatchupStatus(
+          "已上传到云端（slot: " + cloudSave.getSlot() + "）。",
+          CATCHUP_IDLE
+        );
+        return;
+      }
+      if (result && result.reason === "unauthorized") {
+        that.setCatchupStatus("云端鉴权失败，请检查同步令牌。", CATCHUP_FAILED);
+        return;
+      }
+      that.setCatchupStatus(
+        "上传失败：" + ((result && result.reason) || "unknown"),
+        CATCHUP_FAILED
+      );
+    },
+    function () {
+      that.setCatchupStatus("上传失败：网络错误。", CATCHUP_FAILED);
+    }
+  );
+};
+
+Tamago.prototype.cloud_pull = function () {
+  var that = this;
+
+  if (!this.cloudAvailable) {
+    this.setCatchupStatus("云同步不可用。", CATCHUP_FAILED);
+    return;
+  }
+
+  this.setCatchupStatus("正在从云端拉取存档…", CATCHUP_IDLE);
+
+  cloudSave.pull().then(
+    function (result) {
+      if (result && result.ok && result.payload) {
+        if (that.system._eeprom.import_data(result.payload)) {
+          that.system.reset();
+          that.releaseKeys();
+          that.runtimeResume.suspendedAtMs = 0;
+          that.runtimeResume.wasRunning = that.running;
+          that.refreshFigureLabel();
+          that.system.previous_clock = +new Date() / 1000;
+          that.refresh();
+          that.persistRuntimeState(+new Date());
+          that.setCatchupStatus(
+            "已从云端载入（slot: " + cloudSave.getSlot() + "）。",
+            CATCHUP_IDLE
+          );
+          return;
+        }
+        that.setCatchupStatus("云端存档格式异常。", CATCHUP_FAILED);
+        return;
+      }
+      if (result && result.reason === "not_found") {
+        that.setCatchupStatus(
+          "云端尚无该 slot 的存档：" + cloudSave.getSlot() + "。",
+          CATCHUP_IDLE
+        );
+        return;
+      }
+      if (result && result.reason === "unauthorized") {
+        that.setCatchupStatus("云端鉴权失败，请检查同步令牌。", CATCHUP_FAILED);
+        return;
+      }
+      that.setCatchupStatus(
+        "下载失败：" + ((result && result.reason) || "unknown"),
+        CATCHUP_FAILED
+      );
+    },
+    function () {
+      that.setCatchupStatus("下载失败：网络错误。", CATCHUP_FAILED);
+    }
+  );
+};
+
+Tamago.prototype.cloud_config = function () {
+  if (typeof window === "undefined" || typeof window.prompt !== "function") {
+    return;
+  }
+
+  var currentSlot = cloudSave.getSlot();
+  var nextSlot = window.prompt(
+    "云存档 slot 名（仅字母 / 数字 / _ / -，最长 64 字符）",
+    currentSlot
+  );
+  if (nextSlot !== null) {
+    nextSlot = (nextSlot || "").trim();
+    if (nextSlot && !cloudSave.setSlot(nextSlot)) {
+      this.setCatchupStatus("slot 名不合法，未修改。", CATCHUP_FAILED);
+      return;
+    }
+    if (!nextSlot) {
+      cloudSave.setSlot("");
+    }
+  }
+
+  var currentToken = cloudSave.getToken();
+  var nextToken = window.prompt(
+    "云同步令牌（如果服务端未开启 SAVE_TOKEN 可留空）",
+    currentToken
+  );
+  if (nextToken !== null) {
+    cloudSave.setToken(nextToken.trim());
+  }
+
+  this.setCatchupStatus(
+    "云同步设置已更新，slot: " + cloudSave.getSlot() + "。",
+    CATCHUP_IDLE
+  );
+};
+
 Tamago.prototype.update_control = function (e) {
   if (e) {
     this._debug_port = parseInt(e.target.dataset.address);
@@ -1380,7 +1530,10 @@ Tamago.prototype.configure = function (element) {
 
   var exportSaveButton = element.querySelector("button[action=export-save]"),
     importSaveButton = element.querySelector("button[action=import-save]"),
-    saveFileInput = element.querySelector("input[action=save-file]");
+    saveFileInput = element.querySelector("input[action=save-file]"),
+    cloudUploadButton = element.querySelector("button[action=cloud-upload]"),
+    cloudDownloadButton = element.querySelector("button[action=cloud-download]"),
+    cloudConfigButton = element.querySelector("button[action=cloud-config]");
 
   if (exportSaveButton) {
     exportSaveButton.addEventListener("click", function () {
@@ -1402,6 +1555,31 @@ Tamago.prototype.configure = function (element) {
 
       e.target.value = "";
     });
+  }
+
+  if (cloudUploadButton) {
+    cloudUploadButton.addEventListener("click", function () {
+      that.cloud_push();
+    });
+  }
+  if (cloudDownloadButton) {
+    cloudDownloadButton.addEventListener("click", function () {
+      that.cloud_pull();
+    });
+  }
+  if (cloudConfigButton) {
+    cloudConfigButton.addEventListener("click", function () {
+      that.cloud_config();
+    });
+  }
+
+  if (cloudUploadButton || cloudDownloadButton || cloudConfigButton) {
+    that.cloudButtons = {
+      upload: cloudUploadButton,
+      download: cloudDownloadButton,
+      config: cloudConfigButton,
+    };
+    that.detect_cloud_save();
   }
 
   function noopHandler(evt) {

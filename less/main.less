@@ -8,6 +8,10 @@ body {
 	font-size: 14px;
 	margin: 0;
 	min-height: 100vh;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+	overscroll-behavior-y: none;
+	padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 * {
@@ -85,8 +89,10 @@ tamago:not([debugger]) {
 		color: #182427;
 		cursor: pointer;
 		font: inherit;
+		min-height: 40px;
 		min-width: 120px;
 		padding: 8px 32px 8px 12px;
+		touch-action: manipulation;
 	}
 
 	.figure-selector {
@@ -118,7 +124,8 @@ tamago:not([debugger]) {
 	.sound-toggle,
 	.register-log-toggle,
 	.save-export,
-	.save-import {
+	.save-import,
+	.cloud-toggle {
 		appearance: none;
 		background: #213033;
 		border: 1px solid #213033;
@@ -127,8 +134,21 @@ tamago:not([debugger]) {
 		cursor: pointer;
 		font: inherit;
 		font-weight: 700;
+		min-height: 40px;
 		min-width: 92px;
 		padding: 8px 12px;
+		touch-action: manipulation;
+	}
+
+	.cloud-toggle {
+		background: #2f5d6c;
+		border-color: #284e5a;
+	}
+
+	.cloud-toggle.cloud-config {
+		background: #ffffff;
+		border-color: #2f5d6c;
+		color: #2f5d6c;
 	}
 
 	.sound-toggle.is-active,
@@ -141,7 +161,8 @@ tamago:not([debugger]) {
 	.sound-toggle:disabled,
 	.register-log-toggle:disabled,
 	.save-export:disabled,
-	.save-import:disabled {
+	.save-import:disabled,
+	.cloud-toggle:disabled {
 		background: #d5dddf;
 		border-color: #c5d0d3;
 		color: #6d7b7f;
@@ -299,13 +320,13 @@ tamago:not([debugger]) {
 			inset 0 0 0 1px rgba(255, 255, 255, 0.22),
 			inset 0 0 18px rgba(26, 31, 30, 0.32),
 			0 1px 3px rgba(15, 22, 20, 0.28);
-		height: 37.95%;
-		left: 30.8%;
+		height: 45.5%;
+		left: 27.05%;
 		overflow: hidden;
 		pointer-events: none;
 		position: absolute;
-		top: 31.8%;
-		width: 37.95%;
+		top: 28.05%;
+		width: 45.9%;
 	}
 
 	.glyph-row {
@@ -424,13 +445,13 @@ tamago:not([debugger]) {
 		color: transparent;
 		cursor: pointer;
 		font-size: 0;
-		height: 8.8%;
+		height: 11.5%;
 		padding: 0;
 		pointer-events: auto;
 		position: absolute;
 		touch-action: none;
 		transform: translate(-50%, -50%);
-		width: 8.8%;
+		width: 11.5%;
 	}
 
 	.user-keys .key-a {
@@ -463,21 +484,155 @@ tamago:not([debugger]) {
 	}
 }
 
-@media (max-width: 520px) {
+@media (max-width: 760px) {
 	.site-notice {
+		font-size: 11.5px;
 		padding: 10px 14px 0;
 	}
 
 	tamago:not([debugger]) {
-		min-height: calc(100vh - 112px);
-
 		display {
-			min-height: calc(100vh - 112px);
-			padding: 10px 8px 18px;
+			padding: 10px 10px 18px;
+		}
+
+		.control-row {
+			gap: 8px;
+		}
+
+		.figure-selector select,
+		.speed-selector select,
+		.sound-toggle,
+		.register-log-toggle,
+		.save-export,
+		.save-import,
+		.cloud-toggle {
+			flex: 1 1 calc(50% - 8px);
+			min-width: 0;
+		}
+
+		.speed-selector {
+			flex: 1 1 calc(50% - 8px);
+		}
+
+		.speed-selector select {
+			width: 100%;
 		}
 
 		.device-shell {
+			width: min(96vw, 520px);
+		}
+	}
+}
+
+@media (max-width: 520px) {
+	.site-notice {
+		font-size: 11px;
+		padding: 8px 12px 0;
+	}
+
+	tamago:not([debugger]) {
+		min-height: calc(100vh - 110px);
+
+		display {
+			min-height: calc(100vh - 110px);
+			padding: 8px 6px 14px;
+			gap: 10px;
+		}
+
+		.control-row {
+			gap: 6px;
+		}
+
+		.figure-selector select,
+		.speed-selector select,
+		.sound-toggle,
+		.register-log-toggle,
+		.save-export,
+		.save-import,
+		.cloud-toggle {
+			font-size: 13px;
+			min-height: 38px;
+			padding: 6px 10px;
+		}
+
+		figure {
+			font-size: 13px;
+			min-height: 1.5em;
+			padding: 2px 0;
+		}
+
+		.save-notice,
+		.catchup-status {
+			font-size: 11.5px;
+			line-height: 1.55;
+			padding: 7px 10px;
 			width: min(98vw, 700px);
+		}
+
+		.register-log {
+			font-size: 11.5px;
+			max-height: 140px;
+			width: min(98vw, 700px);
+		}
+
+		.device-shell {
+			width: min(98vw, 480px);
+		}
+
+		.user-keys button {
+			height: 14%;
+			width: 14%;
+		}
+
+		.catchup-overlay {
+			padding: 16px;
+		}
+
+		.catchup-overlay-card {
+			padding: 14px;
+
+			strong {
+				font-size: 16px;
+			}
+
+			p {
+				font-size: 12px;
+			}
+		}
+	}
+}
+
+@media (max-width: 360px) {
+	tamago:not([debugger]) {
+		display {
+			padding: 6px 4px 12px;
+		}
+
+		.figure-selector select,
+		.speed-selector select,
+		.sound-toggle,
+		.register-log-toggle,
+		.save-export,
+		.save-import,
+		.cloud-toggle {
+			flex-basis: 100%;
+		}
+
+		.device-shell {
+			width: min(100vw, 380px);
+		}
+	}
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+	tamago:not([debugger]) {
+		display {
+			min-height: auto;
+			padding: 6px 8px 12px;
+		}
+
+		.device-shell {
+			width: min(70vh, 520px);
 		}
 	}
 }

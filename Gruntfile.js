@@ -5,7 +5,8 @@ module.exports = function (grunt) {
     less: {
       dev: {
         options: {
-          style: "expanded",
+          math: "always",
+          strictMath: false,
         },
         files: {
           "web/style/runtime.css": "less/runtime.less",

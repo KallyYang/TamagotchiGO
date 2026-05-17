@@ -26,6 +26,9 @@
 			<button class="save-export" type="button" action="export-save">导出存档</button>
 			<button class="save-import" type="button" action="import-save">导入存档</button>
 			<input class="save-file-input" type="file" action="save-file" accept=".json,.txt" />
+			<button class="cloud-toggle" type="button" action="cloud-upload" hidden>☁ 上传到云端</button>
+			<button class="cloud-toggle" type="button" action="cloud-download" hidden>☁ 从云端下载</button>
+			<button class="cloud-toggle cloud-config" type="button" action="cloud-config" hidden>云同步设置</button>
 		</div>
 		<p class="save-notice" role="note">
 			提示：存档保存在当前浏览器，可手动导出备份。清理浏览器数据、换浏览器或换设备后不会自动保留。
