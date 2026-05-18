@@ -8,6 +8,8 @@
     "start:app": "node ./scripts/launch.js",
     "test:rom": "node ./scripts/rom-regression.js",
     "test:runtime": "node ./scripts/runtime-catchup.js",
+    "users": "node ./scripts/users-add.js",
+    "users:kv": "node ./scripts/users-kv.js",
     "worker:dev": "wrangler dev",
     "worker:deploy": "wrangler deploy"
   },

@@ -3,18 +3,21 @@ var config = require("./config.js"),
   offlineCatchup = require("./offline_catchup.js"),
   registerLog = require("./register_log.js"),
   cloudSave = require("./cloud_save.js"),
+  auth = require("./auth.js"),
   tamagotchi = require("./cpu/tamagotchi.js"),
+  eeprom = require("./cpu/eeprom.js"),
   disassemble = require("./cpu/disassembler.js"),
   ports = require("./data/ports.js"),
   object = require("../util/object.js"),
   mainTemplate = require("../templates/main.html"),
-  portTemplate = require("../templates/port.html");
+  portTemplate = require("../templates/port.html"),
+  authTemplate = require("../templates/auth.html");
 
 var FRAME_MS = 1000 / 60,
   CATCHUP_BUDGET_MS = offlineCatchup.DEFAULT_EXACT_BUDGET_MS,
   CATCHUP_BENCHMARK_FRAMES = 90,
   CATCHUP_CHUNK_TARGET_MS = 18,
-  RUNTIME_STORAGE_KEY = "tamago_runtime_resume_v1",
+  RUNTIME_STORAGE_BASE_KEY = "tamago_runtime_resume_v1",
   CATCHUP_IDLE = "idle",
   CATCHUP_RUNNING = "running",
   CATCHUP_APPROXIMATE = "approximate_applied",
@@ -129,6 +132,14 @@ function formatDuration(ms) {
   return parts.join("");
 }
 
+function getRuntimeStorageKey() {
+  var session = auth.getCurrentSession();
+  if (session && session.accountId) {
+    return auth.accountStorageKey(session.accountId, RUNTIME_STORAGE_BASE_KEY);
+  }
+  return RUNTIME_STORAGE_BASE_KEY;
+}
+
 function readRuntimeResume() {
   var store = getStorage(),
     raw,
@@ -139,7 +150,7 @@ function readRuntimeResume() {
   }
 
   try {
-    raw = store.getItem(RUNTIME_STORAGE_KEY);
+    raw = store.getItem(getRuntimeStorageKey());
     if (!raw) {
       return null;
     }
@@ -167,7 +178,7 @@ function writeRuntimeResume(payload) {
     return false;
   }
 
-  store.setItem(RUNTIME_STORAGE_KEY, JSON.stringify(payload));
+  store.setItem(getRuntimeStorageKey(), JSON.stringify(payload));
   return true;
 }
 
@@ -178,16 +189,176 @@ function clearRuntimeResume() {
     return;
   }
 
-  store.removeItem(RUNTIME_STORAGE_KEY);
+  store.removeItem(getRuntimeStorageKey());
+}
+
+function applyAccountNamespace(accountId) {
+  var ns = accountId ? "tamago_acc_" + accountId + "_" : "";
+  if (eeprom && typeof eeprom.setStorageNamespace === "function") {
+    eeprom.setStorageNamespace(ns);
+  }
+}
+
+function clearActiveTamagoInstances() {
+  [].forEach.call(document.querySelectorAll("tamago"), function (elem) {
+    if (elem._tamagoInstance && typeof elem._tamagoInstance.dispose === "function") {
+      elem._tamagoInstance.dispose();
+    }
+    elem.innerHTML = "";
+    elem._tamagoInstance = null;
+  });
+}
+
+function bootTamagoInstances() {
+  [].forEach.call(document.querySelectorAll("tamago"), function (elem) {
+    if (elem._tamagoInstance) {
+      return;
+    }
+    elem._tamagoInstance = new Tamago(elem);
+  });
+}
+
+function ensureSessionBar(session) {
+  var bar = document.querySelector(".session-bar"),
+    nameEl,
+    logoutBtn;
+
+  if (!session) {
+    if (bar && bar.parentNode) {
+      bar.parentNode.removeChild(bar);
+    }
+    return;
+  }
+
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.className = "session-bar";
+    bar.innerHTML =
+      '<span class="session-user-label">当前账号：</span>' +
+      '<span class="session-user" data-session-name></span>' +
+      '<button type="button" class="session-logout" data-session-logout>退出登录</button>';
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    logoutBtn = bar.querySelector("[data-session-logout]");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", function () {
+        handleLogout();
+      });
+    }
+  }
+
+  nameEl = bar.querySelector("[data-session-name]");
+  if (nameEl) {
+    nameEl.textContent = session.username;
+  }
+}
+
+function showAuthOverlay() {
+  document.body.classList.add("auth-locked");
+
+  var overlay = document.querySelector(".auth-overlay");
+  if (!overlay) {
+    var host = document.createElement("div");
+    host.innerHTML = authTemplate({});
+    overlay = host.firstElementChild;
+    document.body.appendChild(overlay);
+    bindAuthOverlay(overlay);
+  } else {
+    overlay.hidden = false;
+  }
+}
+
+function hideAuthOverlay() {
+  var overlay = document.querySelector(".auth-overlay");
+  if (overlay && overlay.parentNode) {
+    overlay.parentNode.removeChild(overlay);
+  }
+  document.body.classList.remove("auth-locked");
+}
+
+function setAuthError(overlay, target, message) {
+  var err = overlay.querySelector('[data-auth-error="' + target + '"]');
+  if (!err) {
+    return;
+  }
+  if (message) {
+    err.textContent = message;
+    err.hidden = false;
+  } else {
+    err.hidden = true;
+    err.textContent = "";
+  }
+}
+
+function setAuthSubmitting(form, submitting) {
+  var btn = form.querySelector('button[type="submit"]');
+  if (btn) {
+    btn.disabled = Boolean(submitting);
+  }
+  [].forEach.call(form.querySelectorAll("input"), function (input) {
+    input.disabled = Boolean(submitting);
+  });
+}
+
+function bindAuthOverlay(overlay) {
+  var loginForm = overlay.querySelector('[data-auth-form="login"]');
+
+  if (!loginForm) {
+    return;
+  }
+
+  loginForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    setAuthError(overlay, "login", "");
+
+    var username = overlay.querySelector('[data-auth-input="login-username"]').value,
+      password = overlay.querySelector('[data-auth-input="login-password"]').value;
+
+    setAuthSubmitting(loginForm, true);
+    auth.login(username, password, function (result) {
+      setAuthSubmitting(loginForm, false);
+      if (!result.ok) {
+        setAuthError(overlay, "login", result.reason || "登录失败");
+        return;
+      }
+      onAuthSuccess(result.account);
+    });
+  });
+}
+
+function onAuthSuccess(account) {
+  if (!account) {
+    return;
+  }
+  applyAccountNamespace(account.id);
+  hideAuthOverlay();
+  ensureSessionBar({ accountId: account.id, username: account.username });
+  clearActiveTamagoInstances();
+  bootTamagoInstances();
+}
+
+function handleLogout() {
+  clearActiveTamagoInstances();
+  auth.logout();
+  applyAccountNamespace(null);
+  ensureSessionBar(null);
+  showAuthOverlay();
 }
 
 function start(bios) {
   getBinary("files/tamago.bin", function (bios) {
     tamagotchi.system.prototype.bios = bios;
 
-    [].forEach.call(document.querySelectorAll("tamago"), function (elem) {
-      new Tamago(elem);
-    });
+    var session = auth.getCurrentSession();
+    if (session) {
+      applyAccountNamespace(session.accountId);
+      ensureSessionBar(session);
+      bootTamagoInstances();
+      return;
+    }
+
+    applyAccountNamespace(null);
+    showAuthOverlay();
   });
 }
 
@@ -971,6 +1142,21 @@ Tamago.prototype.startRunning = function () {
 
 Tamago.prototype.stopRunning = function () {
   this.setRunning(false);
+};
+
+Tamago.prototype.dispose = function () {
+  this.stopRunning();
+  if (this.frameHandle) {
+    cancelAnimationFrame(this.frameHandle);
+    this.frameHandle = null;
+  }
+  if (this.autoStartTimer) {
+    clearTimeout(this.autoStartTimer);
+    this.autoStartTimer = null;
+  }
+  if (this.audio && typeof this.audio.setSuppressed === "function") {
+    this.audio.setSuppressed(true);
+  }
 };
 
 Tamago.prototype.step = function () {

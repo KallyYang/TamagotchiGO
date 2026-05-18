@@ -18,6 +18,15 @@ binding = "ASSETS"
 # binding = "SAVE_KV"
 # id = "<your-kv-namespace-id>"
 # preview_id = "<your-kv-preview-namespace-id>"
+#
+# 账号白名单（登录鉴权）：
+#   - 复用 SAVE_KV，键名前缀为 "user:<username>"，值为 JSON
+#     { username, algo: "pbkdf2-sha256", iterations, salt, hash, updatedAt }
+#   - 也可单独绑定 AUTH_KV 命名空间；Worker 优先选择 AUTH_KV，找不到再回落到 SAVE_KV
+#   - 写入账号示例：
+#       npm run users:kv -- add alice my-strong-pass --remote
+#     该脚本会调用 wrangler kv 把哈希条目写入对应 KV
+#   - /api/auth/health 与 /api/auth/login 由 worker/worker.js 处理
 
 # 可选鉴权 Token。建议在 Dashboard → Settings → Variables and Secrets 添加 Secret：
 #   Variable name: SAVE_TOKEN

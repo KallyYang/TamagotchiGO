@@ -5,8 +5,23 @@ var DISABLED = 0,
 	ADDRESS = 2,
 	READ = 3,
 	WRITE = 4,
-	STORAGE_KEY = "tamago_eeprom_data",
-	LEGACY_STORAGE_KEY = "eeprom_data";
+	BASE_STORAGE_KEY = "tamago_eeprom_data",
+	LEGACY_STORAGE_KEY = "eeprom_data",
+	storage_namespace = "";
+
+function get_storage_key() {
+	return storage_namespace
+		? storage_namespace + BASE_STORAGE_KEY
+		: BASE_STORAGE_KEY;
+}
+
+function set_storage_namespace(ns) {
+	storage_namespace = ns || "";
+}
+
+function get_storage_namespace() {
+	return storage_namespace;
+}
 
 function decode(data) {
 	if (!data || data.length % 2 || !/^[0-9a-fA-F]+$/.test(data)) {
@@ -46,10 +61,15 @@ function get_storage() {
 function load_data(byte_size) {
 	var store = get_storage(),
 		raw,
-		data;
+		data,
+		key;
 
 	if (store) {
-		raw = store.getItem(STORAGE_KEY) || store.getItem(LEGACY_STORAGE_KEY);
+		key = get_storage_key();
+		raw = store.getItem(key);
+		if (!raw && !storage_namespace) {
+			raw = store.getItem(LEGACY_STORAGE_KEY);
+		}
 		data = decode(raw);
 	}
 
@@ -129,7 +149,7 @@ eeprom.prototype.save = function () {
 		this.save_timer = null;
 	}
 
-	store.setItem(STORAGE_KEY, encode(this.data));
+	store.setItem(get_storage_key(), encode(this.data));
 	return true;
 };
 
@@ -320,5 +340,7 @@ eeprom.prototype.update = function(power, clk, data) {
 }
 
 module.exports = {
-	eeprom: eeprom
+	eeprom: eeprom,
+	setStorageNamespace: set_storage_namespace,
+	getStorageNamespace: get_storage_namespace
 };

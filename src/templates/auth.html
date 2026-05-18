@@ -1,0 +1,25 @@
+<div class="auth-overlay" data-auth-overlay>
+	<div class="auth-card">
+		<header class="auth-card-header">
+			<h1 class="auth-title">TamaGo</h1>
+			<p class="auth-subtitle">请输入管理员分配的账号与密码登录。</p>
+		</header>
+
+		<form class="auth-form auth-form-login is-active" data-auth-form="login" autocomplete="off" novalidate>
+			<label class="auth-field">
+				<span>账号</span>
+				<input type="text" name="username" data-auth-input="login-username" autocomplete="username" maxlength="32" required />
+			</label>
+			<label class="auth-field">
+				<span>密码</span>
+				<input type="password" name="password" data-auth-input="login-password" autocomplete="current-password" maxlength="128" required />
+			</label>
+			<p class="auth-error" data-auth-error="login" hidden></p>
+			<button class="auth-submit" type="submit" data-auth-action="login">登录</button>
+			<p class="auth-hint">
+				账号由管理员通过后台白名单（<code>web/files/users.json</code>）配置，
+				如需新增请使用 <code>npm run users -- add &lt;name&gt; &lt;pass&gt;</code>。
+			</p>
+		</form>
+	</div>
+</div>

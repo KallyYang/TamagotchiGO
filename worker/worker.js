@@ -12,6 +12,9 @@
 
 const SLOT_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const DEFAULT_SLOT = "default";
+const USERNAME_PATTERN = /^[A-Za-z0-9_\-\.]{2,32}$/;
+const AUTH_USER_PREFIX = "user:";
+const AUTH_DEFAULT_ITERATIONS = 200000;
 
 function jsonResponse(data, init) {
   init = init || {};
@@ -215,6 +218,170 @@ async function handleDeleteSave(request, url, env) {
   return withCors(jsonResponse({ ok: true, slot }), request);
 }
 
+function authKv(env) {
+  return env.AUTH_KV || env.SAVE_KV || null;
+}
+
+function hexToBytes(hex) {
+  if (typeof hex !== "string" || hex.length % 2 || !/^[0-9a-fA-F]*$/.test(hex)) {
+    return null;
+  }
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return out;
+}
+
+function bytesToHex(buffer) {
+  const view = new Uint8Array(buffer);
+  let out = "";
+  for (let i = 0; i < view.length; i++) {
+    out += (0x100 | view[i]).toString(16).slice(1);
+  }
+  return out;
+}
+
+function constantTimeEqualHex(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) {
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+async function pbkdf2Sha256Hex(password, saltHex, iterations, keyLengthBytes) {
+  const saltBytes = hexToBytes(saltHex);
+  if (!saltBytes) {
+    return null;
+  }
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltBytes,
+      iterations: iterations,
+      hash: "SHA-256",
+    },
+    key,
+    keyLengthBytes * 8
+  );
+  return bytesToHex(bits);
+}
+
+async function handleAuthHealth(request, env) {
+  return withCors(
+    jsonResponse({
+      ok: true,
+      kvBound: Boolean(authKv(env)),
+    }),
+    request
+  );
+}
+
+async function handleAuthLogin(request, env) {
+  const kv = authKv(env);
+  if (!kv) {
+    return withCors(
+      jsonResponse({ ok: false, error: "kv_not_bound" }, { status: 500 }),
+      request
+    );
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return withCors(
+      jsonResponse({ ok: false, error: "invalid_json" }, { status: 400 }),
+      request
+    );
+  }
+
+  const username = (body && typeof body.username === "string" ? body.username : "").trim();
+  const password = body && typeof body.password === "string" ? body.password : "";
+
+  if (!USERNAME_PATTERN.test(username)) {
+    return withCors(
+      jsonResponse({ ok: false, error: "invalid_credentials" }, { status: 401 }),
+      request
+    );
+  }
+  if (!password || password.length > 128) {
+    return withCors(
+      jsonResponse({ ok: false, error: "invalid_credentials" }, { status: 401 }),
+      request
+    );
+  }
+
+  const raw = await kv.get(AUTH_USER_PREFIX + username);
+  if (!raw) {
+    return withCors(
+      jsonResponse({ ok: false, error: "invalid_credentials" }, { status: 401 }),
+      request
+    );
+  }
+
+  let record;
+  try {
+    record = JSON.parse(raw);
+  } catch (e) {
+    return withCors(
+      jsonResponse({ ok: false, error: "corrupt_record" }, { status: 500 }),
+      request
+    );
+  }
+
+  const algo = (record.algo || "pbkdf2-sha256").toLowerCase();
+  if (algo !== "pbkdf2-sha256") {
+    return withCors(
+      jsonResponse({ ok: false, error: "unsupported_algo" }, { status: 500 }),
+      request
+    );
+  }
+
+  const iterations = Number(record.iterations) || AUTH_DEFAULT_ITERATIONS;
+  const expectedHex = String(record.hash || "");
+  const keyLength = expectedHex.length / 2 || 32;
+
+  let actualHex;
+  try {
+    actualHex = await pbkdf2Sha256Hex(password, record.salt || "", iterations, keyLength);
+  } catch (e) {
+    return withCors(
+      jsonResponse({ ok: false, error: "hash_failed" }, { status: 500 }),
+      request
+    );
+  }
+
+  if (!actualHex || !constantTimeEqualHex(actualHex, expectedHex)) {
+    return withCors(
+      jsonResponse({ ok: false, error: "invalid_credentials" }, { status: 401 }),
+      request
+    );
+  }
+
+  return withCors(
+    jsonResponse({
+      ok: true,
+      account: {
+        username: username,
+      },
+    }),
+    request
+  );
+}
+
 async function handleApi(request, url, env) {
   if (request.method === "OPTIONS") {
     return withCors(new Response(null, { status: 204 }), request);
@@ -222,6 +389,14 @@ async function handleApi(request, url, env) {
 
   if (url.pathname === "/api/save/health" && request.method === "GET") {
     return handleHealth(request, env);
+  }
+
+  if (url.pathname === "/api/auth/health" && request.method === "GET") {
+    return handleAuthHealth(request, env);
+  }
+
+  if (url.pathname === "/api/auth/login" && request.method === "POST") {
+    return handleAuthLogin(request, env);
   }
 
   if (url.pathname === "/api/save") {
