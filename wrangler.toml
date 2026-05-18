@@ -7,18 +7,22 @@ compatibility_date = "2024-11-01"
 directory = "./web"
 binding = "ASSETS"
 
-# Workers KV 绑定。需要先在 Cloudflare 创建一个 KV 命名空间，
-# 然后把它的 id / preview_id 填到这里：
-#   wrangler kv namespace create "tamago-saves"
-#   wrangler kv namespace create "tamago-saves" --preview
-[[kv_namespaces]]
-binding = "SAVE_KV"
-id = "REPLACE_WITH_KV_ID"
-preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+# Workers KV 绑定。
+# 本项目通过 Cloudflare Dashboard 手动绑定 KV：
+#   1. Dashboard → Storage & Databases → KV，创建命名空间（例如 "tamago-saves"）
+#   2. Dashboard → Workers & Pages → 本 Worker → Settings → Bindings
+#      添加 KV namespace binding，Variable name 必须为 "SAVE_KV"
+# Dashboard 中的 binding 会覆盖此处声明，因此这里仅作占位说明，部署时无需填写真实 id。
+# 如果改用 `wrangler` CLI 部署，再取消下面的注释并填入 id / preview_id：
+# [[kv_namespaces]]
+# binding = "SAVE_KV"
+# id = "<your-kv-namespace-id>"
+# preview_id = "<your-kv-preview-namespace-id>"
 
-# 可选鉴权 Token。建议通过 `wrangler secret put SAVE_TOKEN` 配置，而不是直接写在这里。
-# [vars]
-# SAVE_TOKEN = "change-me"
+# 可选鉴权 Token。建议在 Dashboard → Settings → Variables and Secrets 添加 Secret：
+#   Variable name: SAVE_TOKEN
+#   Type: Secret
+# 或使用 CLI：`wrangler secret put SAVE_TOKEN`，避免写入版本库。
 
 # 本地开发服务器配置（npx wrangler dev 使用）。
 [dev]
