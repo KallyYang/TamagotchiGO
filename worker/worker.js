@@ -14,7 +14,10 @@ const SLOT_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const DEFAULT_SLOT = "default";
 const USERNAME_PATTERN = /^[A-Za-z0-9_\-\.]{2,32}$/;
 const AUTH_USER_PREFIX = "user:";
-const AUTH_DEFAULT_ITERATIONS = 200000;
+const AUTH_DEFAULT_ITERATIONS = 100000;
+// Cloudflare Workers 的 SubtleCrypto.deriveBits(PBKDF2) 限制 iterations <= 100000，
+// 超过会抛 OperationError。这里同步设为 100000 以避免运行时报 hash_failed。
+const AUTH_MAX_ITERATIONS = 100000;
 
 function jsonResponse(data, init) {
   init = init || {};
@@ -351,6 +354,20 @@ async function handleAuthLogin(request, env) {
   }
 
   const iterations = Number(record.iterations) || AUTH_DEFAULT_ITERATIONS;
+  if (iterations > AUTH_MAX_ITERATIONS) {
+    return withCors(
+      jsonResponse(
+        {
+          ok: false,
+          error: "iterations_too_high",
+          maxIterations: AUTH_MAX_ITERATIONS,
+          recordIterations: iterations,
+        },
+        { status: 500 }
+      ),
+      request
+    );
+  }
   const expectedHex = String(record.hash || "");
   const keyLength = expectedHex.length / 2 || 32;
 
@@ -359,7 +376,14 @@ async function handleAuthLogin(request, env) {
     actualHex = await pbkdf2Sha256Hex(password, record.salt || "", iterations, keyLength);
   } catch (e) {
     return withCors(
-      jsonResponse({ ok: false, error: "hash_failed" }, { status: 500 }),
+      jsonResponse(
+        {
+          ok: false,
+          error: "hash_failed",
+          detail: (e && (e.message || e.name)) || "unknown",
+        },
+        { status: 500 }
+      ),
       request
     );
   }

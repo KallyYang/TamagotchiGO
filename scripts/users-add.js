@@ -48,7 +48,7 @@ function writeUsers(payload) {
 }
 
 function hashPassword(password, salt) {
-  var iterations = 200000;
+  var iterations = 100000;
   var hashBuf = crypto.pbkdf2Sync(password, salt, iterations, 32, "sha256");
   return {
     algo: "pbkdf2-sha256",

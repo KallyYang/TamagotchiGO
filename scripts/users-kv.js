@@ -23,7 +23,7 @@ var spawnSync = require("child_process").spawnSync;
 var DEFAULT_BINDING = "SAVE_KV";
 var KEY_PREFIX = "user:";
 var USERNAME_PATTERN = /^[A-Za-z0-9_\-\.]{2,32}$/;
-var DEFAULT_ITERATIONS = 200000;
+var DEFAULT_ITERATIONS = 100000; // Cloudflare Workers PBKDF2 上限
 
 function parseArgs(argv) {
   var args = { positional: [], binding: DEFAULT_BINDING, remote: false, preview: false };
