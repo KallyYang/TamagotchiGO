@@ -10,6 +10,11 @@ var DEFAULT_HOST = "127.0.0.1";
 var DEFAULT_PORT = 9001;
 var ROOT_DIR = path.resolve(__dirname, "..");
 var WEB_DIR = path.join(ROOT_DIR, "web");
+var LOCAL_SAVE_DIR = path.join(ROOT_DIR, ".local-saves");
+var LOCAL_SAVE_TOKEN = process.env.TAMAGO_SAVE_TOKEN || "";
+var SAVE_SLOT_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+var SAVE_HEX_PATTERN = /^[0-9a-fA-F]+$/;
+var SAVE_MAX_HEX_LENGTH = 64 * 1024;
 var BUILD_OUTPUTS = [
   path.join(WEB_DIR, "tamagotchi.js"),
   path.join(WEB_DIR, "style", "runtime.css"),
@@ -220,6 +225,231 @@ function openBrowser(url) {
   }
 }
 
+function ensureLocalSaveDir() {
+  try {
+    fs.mkdirSync(LOCAL_SAVE_DIR, { recursive: true });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function localSavePath(slot) {
+  return path.join(LOCAL_SAVE_DIR, "save-" + slot + ".json");
+}
+
+function readRequestBody(req, limitBytes) {
+  return new Promise(function (resolve, reject) {
+    var chunks = [];
+    var received = 0;
+
+    req.on("data", function (chunk) {
+      received += chunk.length;
+      if (received > limitBytes) {
+        reject(new Error("payload_too_large"));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", function () {
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    req.on("error", function (error) {
+      reject(error);
+    });
+  });
+}
+
+function sendJson(res, statusCode, data) {
+  var body = JSON.stringify(data);
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=UTF-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(body);
+}
+
+function tokenOk(req, query) {
+  if (!LOCAL_SAVE_TOKEN) {
+    return true;
+  }
+  var provided =
+    req.headers["x-save-token"] ||
+    (query && query.get && query.get("token")) ||
+    "";
+  return provided === LOCAL_SAVE_TOKEN;
+}
+
+function getSlotFromQuery(query) {
+  var slot = (query && query.get && query.get("slot")) || "default";
+  if (!SAVE_SLOT_PATTERN.test(slot)) {
+    return null;
+  }
+  return slot;
+}
+
+function handleSaveHealth(req, res) {
+  sendJson(res, 200, {
+    ok: true,
+    hasToken: Boolean(LOCAL_SAVE_TOKEN),
+    kvBound: true,
+    backend: "local-file",
+  });
+}
+
+function handleSaveGet(req, res, query) {
+  if (!tokenOk(req, query)) {
+    sendJson(res, 401, { error: "unauthorized" });
+    return;
+  }
+  var slot = getSlotFromQuery(query);
+  if (!slot) {
+    sendJson(res, 400, { error: "invalid_slot" });
+    return;
+  }
+
+  var filePath = localSavePath(slot);
+  fs.readFile(filePath, "utf8", function (error, raw) {
+    if (error) {
+      if (error.code === "ENOENT") {
+        sendJson(res, 404, { error: "not_found", slot: slot });
+        return;
+      }
+      sendJson(res, 500, { error: "read_failed" });
+      return;
+    }
+
+    var parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      sendJson(res, 500, { error: "corrupt_payload" });
+      return;
+    }
+    sendJson(res, 200, { slot: slot, payload: parsed });
+  });
+}
+
+function handleSavePut(req, res, query) {
+  if (!tokenOk(req, query)) {
+    sendJson(res, 401, { error: "unauthorized" });
+    return;
+  }
+  var slot = getSlotFromQuery(query);
+  if (!slot) {
+    sendJson(res, 400, { error: "invalid_slot" });
+    return;
+  }
+  if (!ensureLocalSaveDir()) {
+    sendJson(res, 500, { error: "storage_unavailable" });
+    return;
+  }
+
+  readRequestBody(req, 256 * 1024).then(
+    function (raw) {
+      var body;
+      try {
+        body = JSON.parse(raw);
+      } catch (e) {
+        sendJson(res, 400, { error: "invalid_json" });
+        return;
+      }
+
+      if (
+        !body ||
+        body.format !== "tamago-eeprom-v1" ||
+        typeof body.data !== "string" ||
+        body.data.length === 0 ||
+        body.data.length % 2 !== 0 ||
+        !SAVE_HEX_PATTERN.test(body.data)
+      ) {
+        sendJson(res, 400, { error: "invalid_payload" });
+        return;
+      }
+
+      if (body.data.length > SAVE_MAX_HEX_LENGTH) {
+        sendJson(res, 413, { error: "payload_too_large" });
+        return;
+      }
+
+      var stored = {
+        format: "tamago-eeprom-v1",
+        bytes: body.data.length / 2,
+        data: body.data,
+        updatedAt: new Date().toISOString(),
+      };
+
+      fs.writeFile(localSavePath(slot), JSON.stringify(stored), function (writeError) {
+        if (writeError) {
+          sendJson(res, 500, { error: "write_failed" });
+          return;
+        }
+        sendJson(res, 200, { ok: true, slot: slot, updatedAt: stored.updatedAt });
+      });
+    },
+    function (error) {
+      if (error && error.message === "payload_too_large") {
+        sendJson(res, 413, { error: "payload_too_large" });
+        return;
+      }
+      sendJson(res, 400, { error: "invalid_request" });
+    }
+  );
+}
+
+function handleSaveDelete(req, res, query) {
+  if (!tokenOk(req, query)) {
+    sendJson(res, 401, { error: "unauthorized" });
+    return;
+  }
+  var slot = getSlotFromQuery(query);
+  if (!slot) {
+    sendJson(res, 400, { error: "invalid_slot" });
+    return;
+  }
+
+  fs.unlink(localSavePath(slot), function (error) {
+    if (error && error.code !== "ENOENT") {
+      sendJson(res, 500, { error: "delete_failed" });
+      return;
+    }
+    sendJson(res, 200, { ok: true, slot: slot });
+  });
+}
+
+function handleApi(req, res, parsedUrl) {
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return true;
+  }
+
+  if (parsedUrl.pathname === "/api/save/health" && req.method === "GET") {
+    handleSaveHealth(req, res);
+    return true;
+  }
+
+  if (parsedUrl.pathname === "/api/save") {
+    if (req.method === "GET") {
+      handleSaveGet(req, res, parsedUrl.searchParams);
+      return true;
+    }
+    if (req.method === "PUT") {
+      handleSavePut(req, res, parsedUrl.searchParams);
+      return true;
+    }
+    if (req.method === "DELETE") {
+      handleSaveDelete(req, res, parsedUrl.searchParams);
+      return true;
+    }
+    sendJson(res, 405, { error: "method_not_allowed" });
+    return true;
+  }
+
+  return false;
+}
+
 function safeJoin(basePath, requestPath) {
   var decoded;
   var normalized;
@@ -287,7 +517,17 @@ function serveFile(filePath, res) {
 
 function createServer() {
   return http.createServer(function (req, res) {
-    var parsedPath = new URL(req.url, "http://127.0.0.1").pathname;
+    var parsedUrl = new URL(req.url, "http://127.0.0.1");
+    var parsedPath = parsedUrl.pathname;
+
+    if (parsedPath.indexOf("/api/") === 0) {
+      if (handleApi(req, res, parsedUrl)) {
+        return;
+      }
+      sendJson(res, 404, { error: "not_found" });
+      return;
+    }
+
     var requestPath = parsedPath === "/" ? "/index.html" : parsedPath;
     var filePath = safeJoin(WEB_DIR, requestPath);
 
