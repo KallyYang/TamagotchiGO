@@ -1200,7 +1200,11 @@ Tamago.prototype.cloud_pull = function () {
   cloudSave.pull().then(
     function (result) {
       if (result && result.ok && result.payload) {
-        if (that.system._eeprom.import_data(result.payload)) {
+        var payload = result.payload;
+        if (payload && typeof payload === "object") {
+          payload = JSON.stringify(payload);
+        }
+        if (that.system._eeprom.import_data(payload)) {
           that.system.reset();
           that.releaseKeys();
           that.runtimeResume.suspendedAtMs = 0;
